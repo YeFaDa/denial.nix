@@ -56,14 +56,20 @@ find `libfontconfig`.
 Build (compositor from source + prebuilt Flutter artifacts):
 
 ```console
-$ nix build .#denial
+$ nix build github:YeFaDa/denial.nix#denial
+```
+
+Or install to your user profile and launch `denial-session` from a TTY:
+
+```console
+$ nix profile install github:YeFaDa/denial.nix#denial
 ```
 
 NixOS:
 
 ```nix
 {
-  inputs.denial.url = "github:you/denialWM.nix";
+  inputs.denial.url = "github:YeFaDa/denial.nix";
 
   outputs = { self, nixpkgs, denial }: {
     nixosConfigurations.host = nixpkgs.lib.nixosSystem {
@@ -112,4 +118,4 @@ Notes:
    with `nix-prefetch-url` / `nix flake prefetch` — or replace them with fake
    values and let `nix build` print the correct ones.
 3. Re-vendor `Cargo.lock` from the new tag:
-   `curl -o pkgs/denial/Cargo.lock <raw-url-of-tag>/compositor/Cargo.lock`.
+   `curl -o pkgs/denial/Cargo.lock https://raw.githubusercontent.com/denialwm/denial/v<version>/compositor/Cargo.lock`.
