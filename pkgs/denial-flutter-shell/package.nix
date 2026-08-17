@@ -12,7 +12,7 @@
 # coupled to the denial-flutter-engine and denial package versions.
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-shell";
-  version = "0.2.10";
+  version = import ../version.nix;
 
   src = fetchurl {
     url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-${finalAttrs.version}-1-x86_64.pkg.tar.zst";

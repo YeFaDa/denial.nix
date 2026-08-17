@@ -48,7 +48,7 @@
 #    three packages must stay on the same release.
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "denial";
-  version = "0.2.10";
+  version = import ../version.nix;
 
   src = fetchFromGitHub {
     owner = "denialwm";

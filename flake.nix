@@ -21,6 +21,6 @@
       };
 
       nixosModules.denial = import ./nix/module.nix;
-      nixosModule = self.nixosModules.denial;
+      nixosModules.default = self.nixosModules.denial;
     };
 }

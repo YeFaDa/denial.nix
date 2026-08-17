@@ -28,6 +28,7 @@ Only x86-64 is published upstream, so both packages set
 ```
 flake.nix                       # packages, overlay, NixOS module
 nix/module.nix                  # programs.denial NixOS module
+pkgs/version.nix                # release version shared by all three packages
 pkgs/denial/package.nix         # main package (compositor + session + bundle assembly)
 pkgs/denial/Cargo.lock          # vendored from the release tag
 pkgs/denial-flutter-engine/package.nix   # prebuilt engine + ICU data
@@ -113,7 +114,8 @@ Notes:
 
 ## Updating
 
-1. Bump `version` in all three `package.nix` files — they must move together.
+1. Bump the release version in `pkgs/version.nix`; all three packages read
+   it, so they always move together.
 2. Update the three hashes (`denial` `src`, engine `src`, shell `src`), e.g.
    with `nix-prefetch-url` / `nix flake prefetch` — or replace them with fake
    values and let `nix build` print the correct ones.

@@ -17,7 +17,7 @@
 # package version.
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-engine";
-  version = "0.2.10";
+  version = import ../version.nix;
 
   src = fetchurl {
     # Upstream names the artifact with Arch's epoch prefix: epoch 1 +
