@@ -109,8 +109,8 @@ Notes:
 - CJK fallback fonts (upstream ships `adobe-source-han-sans-cn-fonts`) are a
   fontconfig concern; add a CJK font to `fonts.packages` if needed.
 - The `denial-ui-development` live-reload package is not packaged.
-- Realtime scheduling falls back gracefully when rtkit is unavailable; enable
-  `services.rtKit.enable` if you want the RT priority path.
+- The NixOS module enables hardware graphics support and rtkit by default;
+  either setting can still be overridden explicitly in the host configuration.
 
 ## Updating
 

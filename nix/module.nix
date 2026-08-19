@@ -43,6 +43,9 @@ in
     security.pam.services.denial = { };
     environment.sessionVariables.DENIAL_PAM_SERVICE = "denial";
 
+    hardware.graphics.enable = lib.mkDefault true;
+    security.rtkit.enable = lib.mkDefault true;
+
     xdg.portal = {
       enable = true;
       extraPortals = with pkgs; [

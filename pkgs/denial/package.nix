@@ -114,6 +114,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     substituteInPlace packaging/arch/denial.desktop \
       --replace-fail '/usr/bin/denial-session' "${lib.placeholder "out"}/bin/denial-session"
+
+    substituteInPlace packaging/arch/xdg-desktop-portal-wlr-Denial \
+      --replace-fail 'chooser_cmd=zenity ' 'chooser_cmd=${lib.getExe zenity} '
   '';
 
   # The cc-wrapper prunes RUNPATH entries of buildInputs that are never
