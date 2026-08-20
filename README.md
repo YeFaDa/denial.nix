@@ -87,10 +87,12 @@ NixOS:
 }
 ```
 
-The module installs the session, makes `denial-session.target` available to
-the systemd user manager (deniald starts it via D-Bus), registers a PAM
-service for the lock screen, and wires up xdg-desktop-portal (GTK + wlroots)
-matching the upstream portal configuration.
+The module installs the session, registers it with display managers
+(`services.displayManager.sessionPackages`), makes `denial-session.target`
+available to the systemd user manager (deniald starts it via D-Bus),
+registers a PAM service for the lock screen, and wires up
+xdg-desktop-portal (GTK + wlroots) matching the upstream portal
+configuration.
 
 Optional runtime tools the shell can use — matching upstream's optional
 dependencies:
@@ -109,8 +111,10 @@ Notes:
 - CJK fallback fonts (upstream ships `adobe-source-han-sans-cn-fonts`) are a
   fontconfig concern; add a CJK font to `fonts.packages` if needed.
 - The `denial-ui-development` live-reload package is not packaged.
-- The NixOS module enables hardware graphics support and rtkit by default;
-  either setting can still be overridden explicitly in the host configuration.
+- The NixOS module enables hardware graphics support, rtkit, the graphical
+  desktop stack, Polkit, dconf, Xwayland and xdg-desktop-portal by default
+  (matching the base integration of the nixpkgs niri module); every setting
+  is a `mkDefault` and can still be overridden in the host configuration.
 
 ## Updating
 

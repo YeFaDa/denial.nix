@@ -34,6 +34,9 @@ in
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [ cfg.package ] ++ cfg.extraRuntimePackages;
 
+    # Lets display managers discover the packaged wayland-sessions entry.
+    services.displayManager.sessionPackages = [ cfg.package ];
+
     # deniald starts and stops denial-session.target through the systemd
     # user manager on its own; installing the packaged unit is enough.
     systemd.packages = [ cfg.package ];
@@ -46,8 +49,17 @@ in
     hardware.graphics.enable = lib.mkDefault true;
     security.rtkit.enable = lib.mkDefault true;
 
+    # Base Wayland session integration, same defaults the niri module gets
+    # from wayland-session.nix: Polkit for power/network portals, dconf for
+    # the GTK portal, Xwayland for the X clients the session launcher puts
+    # on PATH.
+    services.graphical-desktop.enable = lib.mkDefault true;
+    security.polkit.enable = lib.mkDefault true;
+    programs.dconf.enable = lib.mkDefault true;
+    programs.xwayland.enable = lib.mkDefault true;
+
     xdg.portal = {
-      enable = true;
+      enable = lib.mkDefault true;
       extraPortals = with pkgs; [
         xdg-desktop-portal-gtk
         xdg-desktop-portal-wlr
