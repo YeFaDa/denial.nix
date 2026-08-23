@@ -54,7 +54,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-PFpVj9dwkU1NZfE3+po1yyA6d/tQrpXQDsLPEjWBNAc=";
+    hash = "sha256-FYGlvGpfpo+yzwdxlnwpjUFU0PO0P9k2G6UnyTCKbXs=";
   };
 
   # The cargo workspace lives in compositor/: cargoRoot places the vendored
@@ -105,6 +105,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   postPatch = ''
     patchShebangs packaging/arch/denial-session
+
+    # clipboard.rs guards on JPEG SOI/EOI markers with slice::strip_circumfix,
+    # stabilized in the Rust 1.98 toolchain pinned by upstream's
+    # rust-toolchain.toml; nixpkgs ships an older rustc, so expand it into the
+    # equivalent strip_prefix/strip_suffix chain. Drop once nixpkgs has 1.98.
+    substituteInPlace compositor/src/bin/deniald/clipboard.rs \
+      --replace-fail 'data.strip_circumfix(&[0xff, 0xd8], &[0xff, 0xd9])?' \
+        'data.strip_prefix(&[0xff, 0xd8][..]).and_then(|d| d.strip_suffix(&[0xff, 0xd9][..]))?'
 
     # The launcher reads the system output-configuration template when it
     # initializes a user's copy; /etc is not populated on non-NixOS use of

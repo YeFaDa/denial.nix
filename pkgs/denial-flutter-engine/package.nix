@@ -23,7 +23,7 @@ stdenv.mkDerivation (finalAttrs: {
     # Upstream names the artifact with Arch's epoch prefix: epoch 1 +
     # version 0.2.10 => denial-flutter-engine-1.0.2.10-1-x86_64.pkg.tar.zst
     url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-flutter-engine-1.${finalAttrs.version}-1-x86_64.pkg.tar.zst";
-    hash = "sha256-jXkwpW7OtDsYwrrSSNhgB4MqLbH9riEQJfC0KK7wVZ0=";
+    hash = "sha256-A5T4jU6/7YzL4MoEnES3tiGQSpEvQaArTZ/QZET8I1A=";
   };
 
   nativeBuildInputs = [

@@ -16,7 +16,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = fetchurl {
     url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-${finalAttrs.version}-1-x86_64.pkg.tar.zst";
-    hash = "sha256-vg4FS65VcVwz404nT3CAztZu29SvbZiojK32xAuP8MU=";
+    hash = "sha256-pxYAGM2bizwUsnYtvn3/gcLHlYWKWUYkQ3Hc807wSbE=";
   };
 
   nativeBuildInputs = [ zstd ];
