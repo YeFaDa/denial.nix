@@ -54,7 +54,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-ANQ8eQU1SLfWzMVUjvjhcK9/cYkJF8idCssBsOv8R3o=";
+    hash = "sha256-LEn3JA7PZ5IckhMhgTcVBokkxfxE/QJ/UmSNutM/GGY=";
   };
 
   # The cargo workspace lives in compositor/: cargoRoot places the vendored
@@ -98,7 +98,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   # Matches upstream's release build: the "flutter" feature pulls in the
   # kms, control and wire features required by deniald and denialctl.
+  # Upstream builds the workspace member denial-portal in a second plain
+  # `cargo build -p denial-portal`; selecting both packages mirrors that.
   buildFeatures = [ "flutter" ];
+  cargoBuildFlags = [ "-p" "denial" "-p" "denial-portal" ];
 
   # The compositor test suite drives real DRM/KMS devices.
   doCheck = false;
@@ -125,6 +128,15 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     substituteInPlace packaging/arch/xdg-desktop-portal-wlr-Denial \
       --replace-fail 'chooser_cmd=zenity ' 'chooser_cmd=${lib.getExe zenity} '
+
+    # The portal backend's systemd user unit and D-Bus activation entry
+    # hardcode /usr/bin; point them at this store path instead.
+    substituteInPlace packaging/arch/denial-portal.service \
+      --replace-fail 'ExecStart=/usr/bin/denial-portal' \
+        "ExecStart=${lib.placeholder "out"}/bin/denial-portal"
+    substituteInPlace packaging/arch/org.freedesktop.impl.portal.desktop.denial.service \
+      --replace-fail 'Exec=/usr/bin/denial-portal' \
+        "Exec=${lib.placeholder "out"}/bin/denial-portal"
   '';
 
   # The cc-wrapper prunes RUNPATH entries of buildInputs that are never
@@ -176,14 +188,21 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$out/share/wayland-sessions/denial.desktop"
     install -Dm644 packaging/denial-session.target \
       "$out/lib/systemd/user/denial-session.target"
+    install -Dm644 packaging/arch/denial-portal.service \
+      "$out/lib/systemd/user/denial-portal.service"
     install -Dm644 packaging/arch/denial-portals.conf \
       "$out/share/xdg-desktop-portal/denial-portals.conf"
+    install -Dm644 packaging/arch/denial.portal \
+      "$out/share/xdg-desktop-portal/portals/denial.portal"
+    install -Dm644 packaging/arch/org.freedesktop.impl.portal.desktop.denial.service \
+      "$out/share/dbus-1/services/org.freedesktop.impl.portal.desktop.denial.service"
     install -Dm644 packaging/arch/xdg-desktop-portal-wlr-Denial \
       "$out/share/xdg-desktop-portal-wlr/Denial"
     install -Dm644 packaging/arch/outputs.conf packaging/arch/session.conf \
       -t "$out/share/denial"
 
-    installManPage docs/man/deniald.1 docs/man/denialctl.1 docs/man/denial-session.1
+    installManPage docs/man/deniald.1 docs/man/denialctl.1 \
+      docs/man/denial-session.1 docs/man/denial-portal.1
 
     install -Dm644 README.md -t "$out/share/doc/${finalAttrs.pname}"
     install -Dm644 LICENSE LICENSES/*.txt \

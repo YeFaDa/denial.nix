@@ -65,10 +65,15 @@ in
         xdg-desktop-portal-wlr
       ];
       # Mirrors the upstream denial-portals.conf: GTK handles the generic
-      # interfaces, the wlroots backend consumes Denial's screencopy
+      # interfaces, Denial implements the Settings interface itself since
+      # 0.2.16, and the wlroots backend consumes Denial's screencopy
       # protocol for ScreenCast and Screenshot.
       config.denial = {
         default = [ "gtk" ];
+        "org.freedesktop.impl.portal.Settings" = [
+          "denial"
+          "gtk"
+        ];
         "org.freedesktop.impl.portal.ScreenCast" = "wlr";
         "org.freedesktop.impl.portal.Screenshot" = "wlr";
       };

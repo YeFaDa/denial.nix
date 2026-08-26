@@ -7,9 +7,9 @@
   zstd,
 }:
 
-# Denial embeds a fork of the Flutter engine (Flutter 3.44.7, engine revision
-# 69c8c61792f04cc809dfef0c910414fb9afc06cd) whose sources are locked in
-# prebuilt/flutter-engine/SOURCE_LOCK.json of the denial repository. Rebuilding
+# Denial embeds a fork of the Flutter engine (Flutter 3.44.7) whose sources
+# are locked in prebuilt/flutter-engine/SOURCE_LOCK.json of the denial
+# repository. Rebuilding
 # it requires the full Chromium depot_tools/GN/Ninja toolchain of that fork,
 # so this package consumes the artifact published in the upstream release
 # instead. The compositor verifies the engine's SHA-256 fingerprint of the
@@ -23,7 +23,7 @@ stdenv.mkDerivation (finalAttrs: {
     # Upstream names the artifact with Arch's epoch prefix: epoch 1 +
     # version 0.2.10 => denial-flutter-engine-1.0.2.10-1-x86_64.pkg.tar.zst
     url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-flutter-engine-1.${finalAttrs.version}-1-x86_64.pkg.tar.zst";
-    hash = "sha256-Ak3r84reA6jJ1mTUsBdgIROh6gUOZrnyQMKLLdbUQ04=";
+    hash = "sha256-sNcM8UlBeJYbfb51ehOJWQTgOnJmEHUCUYMoO+Plfw0=";
   };
 
   nativeBuildInputs = [
