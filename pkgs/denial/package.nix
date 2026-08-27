@@ -31,7 +31,7 @@
 
   denial-flutter-engine,
   denial-flutter-shell,
-}:
+}: 
 
 # Packaging model (mirrors niri's nixpkgs package for the Rust part):
 #
@@ -219,17 +219,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     description = "Flutter-native Wayland compositor and desktop shell";
     homepage = "https://github.com/denialwm/denial";
     changelog = "https://github.com/denialwm/denial/releases/tag/v${finalAttrs.version}";
-    license = with lib.licenses; [
-      gpl3Plus # compositor
-      cc-by-sa-40 # bundled wallpapers and cursor assets
-      ofl # bundled JetBrains Mono
-    ];
+    license = with lib.licenses; [ gpl3Plus cc-by-sa-40 ofl ];
     mainProgram = "deniald";
-    platforms = [ "x86_64-linux" ]; # prebuilt shell bundle is x86-64 only
-    sourceProvenance = with lib.sourceTypes; [
-      binaryNativeCode # Flutter engine and AOT shell from the release payload
-    ];
+    platforms = [ "x86_64-linux" ];
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
     hydraPlatforms = [ ];
-    maintainers = [ ];
   };
 })
