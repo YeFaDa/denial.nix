@@ -136,10 +136,59 @@ Notes:
 
 ## Updating
 
+### Prebuilt release packages
+
 1. Bump the release version in `pkgs/version.nix`; all three packages read
    it, so they always move together.
-2. Update the three hashes (`denial` `src`, engine `src`, shell `src`), e.g.
-   with `nix-prefetch-url` / `nix flake prefetch` — or replace them with fake
-   values and let `nix build` print the correct ones.
+2. Update the three release hashes (`denial` `src`, engine `src`, shell `src`),
+   e.g. with `nix-prefetch-url` / `nix flake prefetch`, or use fake hashes and
+   let `nix build` print the expected values.
 3. Re-vendor `Cargo.lock` from the new tag:
    `curl -o pkgs/denial/Cargo.lock https://raw.githubusercontent.com/denialwm/denial/v<version>/compositor/Cargo.lock`.
+
+### Source builds
+
+Source packages use one coupled toolchain. The Flutter fork, Skia fork, Dart
+checkout, Flutter tools snapshot, local engine, and Dart shell AOT output must
+come from compatible revisions. Do not update only one of these inputs.
+
+1. Read the new release's `prebuilt/flutter-engine/SOURCE_LOCK.json` and update
+   `pkgs/denial-flutter-engine/gclient-deps.json` from its complete `DEPS`
+   graph. Keep every fetched dependency pinned by revision and hash; do not use
+   `gclient sync` or a developer checkout inside a Nix build.
+2. Update the independent `nixpkgs-dart` input in `flake.nix` and `flake.lock`
+   to a nixpkgs revision whose `dart-bin` exactly matches the Dart revision
+   required by the new Flutter fork. On Linux, use `dart-bin`, not `dart`:
+   historical nixpkgs may define `dart` as the source-built package.
+3. Update `pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json` from
+   `packages/flutter_tools/pubspec.yaml` using the matching Dart SDK. The lock
+   must be the `flutter_tools` package lock, not Flutter's root workspace lock.
+4. Update `pkgs/denial-flutter-shell/pubspec.lock.json` from `dart_shell` with
+   the matching Flutter/Dart tools. Preserve the SDK package entries and all
+   hosted package hashes so `pub2nix` can construct the dependency closure.
+5. Update the fixed resource inputs in
+   `pkgs/denial-flutter-shell/source.nix` when the new Flutter revision changes
+   `material_fonts.version` or `gradle_wrapper.version`. Both archives need
+   fixed hashes. Engine-only resources must come from the matching local engine
+   output, not from a different Flutter generation.
+6. Keep SDK hash verification enabled. Nix source projections must not create
+   synthetic Git commits. Instead, inject the locked Dart revision through
+   `third_party/dart/tools/GIT_REVISION` and pass the locked Flutter, Skia, and
+   Dart revisions to the GN source projection. VM, `platform_strong.dill`,
+   `gen_snapshot`, and the AOT kernel must share the same first ten bytes of
+   the Dart SDK revision.
+7. Run the static check before any long build:
+   `nix flake check --all-systems --no-build --no-write-lock-file`.
+8. Build the source package only after the inputs and checks pass:
+   `nix build .#denial-flutter-shell-source --no-link --fallback`.
+   This builds the engine first, then the shell AOT snapshot. Verify that the
+   result contains `libapp.so`, `flutter_assets`, and the matching local engine
+   generation.
+9. Build `.#denial-source` only after the engine and shell source outputs pass.
+   Build `.#denial` separately to confirm the default prebuilt x86-64 path was
+   not regressed.
+
+Never mix a source shell with a prebuilt engine, or a source engine with a
+prebuilt shell. If the Dart SDK revision changes, rebuild the engine before
+building the shell; reusing an older `platform_strong.dill` or `gen_snapshot`
+can produce an SDK-hash failure during AOT compilation.

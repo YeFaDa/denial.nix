@@ -29,6 +29,9 @@ stdenv.mkDerivation {
     ln -sf ${dart} "$out/bin/cache/dart-sdk"
     ln -sf ${flutterTools}/share/flutter_tools.snapshot \
       "$out/bin/cache/flutter_tools.snapshot"
+    mkdir -p "$out/packages/flutter_tools/.dart_tool"
+    ln -sf ${flutterTools.pubcache}/package_config.json \
+      "$out/packages/flutter_tools/.dart_tool/package_config.json"
     cp "$out/bin/internal/engine.version" "$out/bin/cache/engine.stamp"
     printf '%s\n' '${version}' > "$out/version"
     makeWrapper "$out/bin/cache/dart-sdk/bin/dart" "$out/bin/flutter" \

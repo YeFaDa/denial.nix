@@ -1,9 +1,9 @@
 {
   description = "Denial, a Flutter-native Wayland compositor — nixpkgs-style packaging";
-
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.nixpkgs-dart.url = "github:NixOS/nixpkgs/61eb395f5d618db696e4918efc774431fb15056e";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, nixpkgs-dart }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       isX86 = system: system == "x86_64-linux";
@@ -36,25 +36,29 @@
 
           enginePrebuilt = final.callPackage ./pkgs/denial-flutter-engine/package.nix { };
           shellPrebuilt = final.callPackage ./pkgs/denial-flutter-shell/package.nix { };
-
-          dartSdkSource = final.callPackage ./pkgs/denial-flutter-engine/dart.nix { };
+          dartSdkSource = nixpkgs-dart.legacyPackages.${prev.stdenv.hostPlatform.system}.dart-bin;
+          engineSource = final.callPackage ./pkgs/denial-flutter-engine/source.nix {
+            dart = dartSdkSource;
+          };
           flutterToolsSource = final.callPackage ./pkgs/denial-flutter-engine/flutter-tools.nix {
             dart = dartSdkSource;
             sdkSourceBuilders = {
               flutter = name:
-                final.runCommand "denial-flutter-sdk-package-${name}" {
+                final.runCommand "denial-flutter-sdk-${name}" {
                   passthru.packageRoot = ".";
                 } ''
-                  ln -s "${engineSource.dev}/flutter/packages/${name}" "$out"
+                  mkdir -p "$out"
+                  if [ "${name}" = sky_engine ]; then
+                    cp -a "${engineSource.dev}/flutter/sky/packages/sky_engine/." "$out/"
+                  else
+                    cp -a "${engineSource.dev}/flutter/packages/${name}/." "$out/"
+                  fi
                 '';
             };
           };
           flutterSdkSource = final.callPackage ./pkgs/denial-flutter-engine/flutter-sdk.nix {
             dart = dartSdkSource;
             flutterTools = flutterToolsSource;
-          };
-          engineSource = final.callPackage ./pkgs/denial-flutter-engine/source.nix {
-            dartSdk = dartSdkSource;
           };
           shellSource = final.callPackage ./pkgs/denial-flutter-shell/source.nix {
             flutter = flutterSdkSource;
