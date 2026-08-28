@@ -2,7 +2,6 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  fetchurl,
   buildDartApplication,
   dart,
   flutter,
@@ -11,19 +10,13 @@
   which,
   denial-flutter-engine-source,
   revisions,
+  materialFonts,
+  gradleWrapper,
 }: 
 
 let
   version = import ../version.nix;
   arch = if stdenv.hostPlatform.isx86_64 then "x64" else "arm64";
-  materialFonts = fetchurl {
-    url = "https://storage.googleapis.com/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip";
-    hash = "sha256-5W+o6btFif3pZL495FHz5bJR5KHq+x3JjZSt0DTdWoY=";
-  };
-  gradleWrapper = fetchurl {
-    url = "https://storage.googleapis.com/flutter_infra_release/gradle-wrapper/fd5c1f2c013565a3bea56ada6df9d2b8e96d56aa/gradle-wrapper.tgz";
-    hash = "sha256-MelCi68aKy9IXxEQxYmfhSZJsz1Goumwf50XdS1QGQo=";
-  };
 in
 buildDartApplication.override { inherit dart; } (finalAttrs: {
   pname = "denial-flutter-shell-source";

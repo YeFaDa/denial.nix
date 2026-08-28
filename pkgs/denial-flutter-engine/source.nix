@@ -188,17 +188,10 @@ EOF
     patchelf --set-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
       "$out/lib/denial/flutter/lib/libflutter_engine.so"
 
-    mkdir -p "$dev/engine-build/out/denial_host_release"
-    cp -a "$output/flutter_patched_sdk" "$dev/engine-build/out/denial_host_release/"
-    cp -a "$output/gen" "$dev/engine-build/out/denial_host_release/"
-    install -Dm755 "$output/gen_snapshot" "$dev/engine-build/out/denial_host_release/gen_snapshot"
-    install -Dm755 "$output/font-subset" "$dev/engine-build/out/denial_host_release/font-subset"
-    install -Dm444 "$output/icudtl.dat" "$dev/engine-build/out/denial_host_release/icudtl.dat"
-    install -Dm555 "$output/libflutter_linux_gtk.so" "$dev/engine-build/out/denial_host_release/libflutter_linux_gtk.so"
-    cp -a "$output/flutter_linux" "$dev/engine-build/out/denial_host_release/" 2>/dev/null || true
+    mkdir -p "$dev/engine-build/out"
+    cp -a "$output" "$dev/engine-build/out/denial_host_release"
 
-    mkdir -p "$dev/flutter/packages" "$dev/flutter/sky/packages" "$dev/flutter/lib"
-    cp -a flutter/packages/. "$dev/flutter/packages/"
+    mkdir -p "$dev/flutter/sky/packages" "$dev/flutter/lib"
     cp -a flutter/sky/packages/sky_engine "$dev/flutter/sky/packages/"
     cp -a flutter/lib/gpu "$dev/flutter/lib/" 2>/dev/null || true
     install -Dm444 flutter/LICENSE "$out/share/licenses/${finalAttrs.pname}/LICENSE"

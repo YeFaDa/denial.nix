@@ -27,6 +27,15 @@
         let
           revisions = import ./pkgs/denial-flutter-engine/revisions.nix { lib = final.lib; };
 
+          materialFonts = final.fetchurl {
+            url = "https://storage.googleapis.com/flutter_infra_release/flutter/fonts/${revisions.materialFontsVersion}/fonts.zip";
+            hash = "sha256-5W+o6btFif3pZL495FHz5bJR5KHq+x3JjZSt0DTdWoY=";
+          };
+          gradleWrapper = final.fetchurl {
+            url = "https://storage.googleapis.com/flutter_infra_release/gradle-wrapper/${revisions.gradleWrapperVersion}/gradle-wrapper.tgz";
+            hash = "sha256-MelCi68aKy9IXxEQxYmfhSZJsz1Goumwf50XdS1QGQo=";
+          };
+
           enginePrebuilt = final.callPackage ./pkgs/denial-flutter-engine/package.nix { };
           shellPrebuilt = final.callPackage ./pkgs/denial-flutter-shell/package.nix { };
           gclient2nix = final.gclient2nix;
@@ -60,7 +69,7 @@
           shellSource = final.callPackage ./pkgs/denial-flutter-shell/source.nix {
             flutter = flutterSdkSource;
             denial-flutter-engine-source = engineSource;
-            inherit revisions;
+            inherit revisions materialFonts gradleWrapper;
           };
 
           denial = final.callPackage ./pkgs/denial/package.nix {
