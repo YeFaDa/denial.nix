@@ -35,8 +35,8 @@ let
     else throw "unsupported host platform: ${stdenv.hostPlatform.system}";
   devtoolsSharedDetails = (lib.importJSON ./flutter-tools-pubspec.lock.json).packages.devtools_shared;
   devtoolsShared = fetchurl {
-    url = "https://pub.dev/api/archives/${devtoolsSharedDetails.description.name}-${devtoolsSharedDetails.version}.tar.gz";
-    hash = "sha256-La96n7pqRwZosm7L0EIA97+ZKq2BosMdEkV8d5FBneo=";
+    url = "${devtoolsSharedDetails.description.url}/api/archives/${devtoolsSharedDetails.description.name}-${devtoolsSharedDetails.version}.tar.gz";
+    sha256 = devtoolsSharedDetails.description.sha256;
   };
 
 

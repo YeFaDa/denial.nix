@@ -17,6 +17,7 @@
         in
         {
           denial = if isX86 then pkgs.denial else pkgs.denial.override { useSource = true; };
+          denial-source = pkgs.denial.override { useSource = true; };
           denial-flutter-engine = if isX86 then pkgs.denial-flutter-engine else pkgs.denial-flutter-engine-source;
           denial-flutter-shell = if isX86 then pkgs.denial-flutter-shell else pkgs.denial-flutter-shell-source;
           inherit (pkgs) denial-flutter-engine-source denial-flutter-shell-source;

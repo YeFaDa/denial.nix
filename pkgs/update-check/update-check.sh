@@ -14,18 +14,23 @@ done
 
 VERSION='@version@'
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing dependency: $1" >&2; exit 1; }; }
-need curl; need jq; need git
+need curl; need jq; need git; need nix; need nix-prefetch-url
 
 latest_tag() {
   curl -fsSL -H 'Accept: application/vnd.github+json' \
-    "https://api.github.com/repos/denialwm/denial/releases?per_page=1" 2>/dev/null \
-    | jq -r 'map(select(.draft==false)) | .[0].tag_name // empty'
+    "https://api.github.com/repos/denialwm/denial/releases?per_page=100" \
+    | jq -r 'map(select(.draft == false)) | .[0].tag_name // empty'
 }
 
 CURRENT="$VERSION"
-LATEST="$(latest_tag || true)"
+LATEST="$(latest_tag)"
+if [[ -z "$LATEST" ]]; then
+  echo "could not determine the latest Denial release" >&2
+  exit 1
+fi
 has_update=0
-if [[ -n "$LATEST" && "$LATEST" != "v$CURRENT" ]]; then has_update=1; fi
+if [[ "$LATEST" != "v$CURRENT" ]]; then has_update=1; fi
+
 
 sha256_sri() {
   local url="$1"
