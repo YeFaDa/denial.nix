@@ -8,6 +8,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       contents: write
       pull-requests: write
@@ -22,6 +23,8 @@ jobs:
           "$update_check_path/bin/denial-update-check" --json > /tmp/check.json
           cat /tmp/check.json
           echo "has_update=$(jq -r .has_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+          echo "release_update=$(jq -r .release_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+          echo "source_update=$(jq -r .source_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
           echo "dart_manual_update=$(jq -r .dart_manual_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
           echo "latest=$(jq -r .latest /tmp/check.json)" >> "$GITHUB_OUTPUT"
       - name: Upload update report
@@ -40,15 +43,6 @@ jobs:
         run: |
           latest="$(jq -r .latest /tmp/check.json)"
           scripts/update-release-pins "$latest"
-      - name: Validate updated pins
-        if: steps.check.outputs.has_update == '1'
-        run: nix flake check --all-systems --no-build --no-write-lock-file
-      - name: Build updated prebuilt package
-        if: steps.check.outputs.has_update == '1'
-        run: nix build .#denial --no-link --fallback
-      - name: Build updated source package
-        if: steps.check.outputs.has_update == '1'
-        run: NIX_BUILD_CORES=16 nix build .#denial-source --no-link --fallback
       - name: Create update pull request
         if: steps.check.outputs.has_update == '1'
         uses: peter-evans/create-pull-request@v7
@@ -61,7 +55,7 @@ jobs:
           body: |
             Generated from one immutable Denial release tag.
 
-            Both the prebuilt and source package paths passed validation and build checks.
+            Automatic pin update only. Build and review this PR manually before merging.
           add-paths: |
             flake.nix
             scripts/update-release-pins

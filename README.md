@@ -224,9 +224,10 @@ only the prebuilt hashes while leaving source pins from another release.
 9. Verify `deniald --version`, `libflutter_engine.so`, `libapp.so`, and
    `flutter_assets`; review and commit all pins together.
 
-The daily GitHub workflow runs the same report. It opens a PR only after the
-automatic pins and both package paths pass validation. A Dart input change is
-reported for manual maintenance; it does not create a partial PR.
+The daily GitHub workflow runs the same report and opens a PR after updating
+the automatic pins. It does not build either package; build and review the PR
+manually before merging. A Dart input change is reported for manual
+maintenance and does not create a partial PR.
 
 The source build never consumes `denial-ui-development`. That package is an
 independent prebuilt developer toolchain and is not a source-build input.
