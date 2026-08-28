@@ -51,6 +51,10 @@ fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+export HOME="$work/home"
+export XDG_CACHE_HOME="$work/cache"
+export JOBLIB_TEMP_FOLDER="$work/joblib"
+mkdir -p "$HOME" "$XDG_CACHE_HOME" "$JOBLIB_TEMP_FOLDER"
 
 dart_path="$(nix build .#denial-flutter-engine-source.passthru.dart \
   --no-link --no-write-lock-file --print-out-paths)"
