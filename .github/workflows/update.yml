@@ -1,0 +1,43 @@
+name: Auto-update Denial pins
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # daily
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      # Do not use magic-nix-cache-action: it requires FlakeHub registration.
+      - name: Check for updates
+        id: check
+        run: |
+          update_check_path="$(nix build .#denial-update-check --no-link --no-write-lock-file --print-out-paths)"
+          "$update_check_path/bin/denial-update-check" --source --json > /tmp/check.json
+          cat /tmp/check.json
+          echo "has_update=$(jq -r .has_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+          echo "source_update=$(jq -r .source.has_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+      - name: Upload update report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: denial-update-report
+          path: /tmp/check.json
+      - name: Report update
+        if: steps.check.outputs.has_update == '1'
+        run: |
+          echo "Release or source pins need maintenance; download denial-update-report." >&2
+          echo "No pins were modified or committed." >&2
+          exit 1
+      - name: Validate current pins
+        if: steps.check.outputs.has_update == '0'
+        run: nix flake check --all-systems --no-build --no-write-lock-file
+      - name: Build current prebuilt package
+        if: steps.check.outputs.has_update == '0'
+        run: nix build .#denial --no-link --fallback

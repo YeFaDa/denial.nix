@@ -1,0 +1,668 @@
+{
+    ".": {
+        "args": {
+            "hash": "sha256-vaO22J5knryzL2tsMa0brQITZEFUTsRI9JiVwHmZZrk=",
+            "owner": "denialwm",
+            "repo": "flutter",
+            "rev": "b20ca326b99f27e33a416ba684333b2a20f711a9"
+        },
+        "fetcher": "fetchFromGitHub"
+    },
+    "engine/src/flutter/third_party/angle": {
+        "args": {
+            "hash": "sha256-tl7idEAbaYepIYZT9ZCu/pk+hpb1TMtrNZU9lIf140I=",
+            "rev": "84027aca9b71c9ba335bd000dad1107b8810a511",
+            "url": "https://flutter.googlesource.com/third_party/angle"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/benchmark": {
+        "args": {
+            "hash": "sha256-5Qjqfu8HTB0TPlMIFtjNrFIZ8sA9eUYV6u7P43QD5UI=",
+            "rev": "431abd149fd76a072f821913c0340137cc755f36",
+            "url": "https://chromium.googlesource.com/external/github.com/google/benchmark"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/boringssl/src": {
+        "args": {
+            "hash": "sha256-4vX3WvpOtdDU35Hh6ffNHDo2gjwY7sj/7KYjpEzw794=",
+            "rev": "b0ae229f686f2be70689584d1e1c6a727a2cdfab",
+            "url": "https://boringssl.googlesource.com/boringssl.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/brotli": {
+        "args": {
+            "hash": "sha256-/rx9FMtd9XMLbkpAMyLJR3v1F1MzutaVj/RbPhpmDQg=",
+            "rev": "350100a5bb9d9671aca85213b2ec7a70a361b0cd",
+            "url": "https://skia.googlesource.com/external/github.com/google/brotli.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/cpu_features/src": {
+        "args": {
+            "hash": "sha256-E8LoVzhe+TAmARWZTSuINlsVhzpUJMxPPCGe/dHZcyA=",
+            "rev": "936b9ab5515dead115606559502e3864958f7f6e",
+            "url": "https://chromium.googlesource.com/external/github.com/google/cpu_features.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart": {
+        "args": {
+            "hash": "sha256-iH9frElp2OZXrgrkha4z2/6pIljC+ersPQ1gHaJUnH0=",
+            "rev": "d684a576a6aa954ae107a03b2b4e1d61c3bebe93",
+            "url": "https://dart.googlesource.com/sdk.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/binaryen/src": {
+        "args": {
+            "hash": "sha256-Hij3jVek7yXoHj81qvY5yzWavmTk8zDA4yrcrKHdSeg=",
+            "rev": "58de22cdfd0ccb38ce68632695c0493c587af932",
+            "url": "https://chromium.googlesource.com/external/github.com/WebAssembly/binaryen.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/perfetto/src": {
+        "args": {
+            "hash": "sha256-EMNWi+FFLxmO7yCUuhjZpIJfFR4NbtwmA2E8r0guo7w=",
+            "rev": "13ce0c9e13b0940d2476cd0cff2301708a9a2e2b",
+            "url": "https://chromium.googlesource.com/external/github.com/google/perfetto"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/ai": {
+        "args": {
+            "hash": "sha256-YNdnSOUtKmbXnssPiyypv4OUlq+JOIlgaJa2IubZYeU=",
+            "rev": "3d3b7fdaddead83ce262377e5c4ce5b2a843066c",
+            "url": "https://dart.googlesource.com/ai.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/core": {
+        "args": {
+            "hash": "sha256-dt9xxZ8cUOJ3Huhi2ZnPpQKuKmKIXjqcyYhKtqbqRD0=",
+            "rev": "347df4b546f315fc1ff69c6e65f2a023b0263b1d",
+            "url": "https://dart.googlesource.com/core.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/dart_style": {
+        "args": {
+            "hash": "sha256-1j5hCLk/l3qBnZtMeVT+dSnGiGkKgM260Q9iwSPnPuw=",
+            "rev": "20ab21773a526f480ca5948f32cf8c77e37d0dc9",
+            "url": "https://dart.googlesource.com/dart_style.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/dartdoc": {
+        "args": {
+            "hash": "sha256-uK7UKg1IYH2soOU+5IOYPABmYwJcb739zO6ZfeYx240=",
+            "rev": "a57f497ae9df6e6073b5eb7ddf253d0b2eb470c3",
+            "url": "https://dart.googlesource.com/dartdoc.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/ecosystem": {
+        "args": {
+            "hash": "sha256-fcW0Um6ipE+kowXGZgkDyo9JrtedaGl4bqPZ8cPLZFo=",
+            "rev": "6b2164f8f57583a7bcaa32341eaa219efd8fd2d3",
+            "url": "https://dart.googlesource.com/ecosystem.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/http": {
+        "args": {
+            "hash": "sha256-V7PSc+h7je7r5xhTwlL35WjMHCGaoL750GICBvnnDuM=",
+            "rev": "6bfe07f26384637fad6d1713de9ba9d2bb5d8c88",
+            "url": "https://dart.googlesource.com/http.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/i18n": {
+        "args": {
+            "hash": "sha256-L5ERuhG6GY1kO//20q2TzBBwwtEGgwU4eFgbNyEDiN4=",
+            "rev": "de7e11b7cc231d8daf6e49dc12690d7339241691",
+            "url": "https://dart.googlesource.com/i18n.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/leak_tracker": {
+        "args": {
+            "hash": "sha256-seMD2yQO3uh2IkiDvTLerQCEcYEIZyQmm5l5U20+hak=",
+            "rev": "f5620600a5ce1c44f65ddaa02001e200b096e14c",
+            "url": "https://dart.googlesource.com/leak_tracker.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/native": {
+        "args": {
+            "hash": "sha256-LwD3sfnyUkGONCXdPgiAxlaopNchFvrTmnXR4eNFRqw=",
+            "rev": "debb5bddc4ce0aef9d70bb949495e0c65cc976d4",
+            "url": "https://dart.googlesource.com/native.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/protobuf": {
+        "args": {
+            "hash": "sha256-eFTGrxtXsshrp8U9S14+XPsXacqeFqkTB5A46T8oi+U=",
+            "rev": "84079e8b8531309e06ba7276b1c28bdca9210ad6",
+            "url": "https://dart.googlesource.com/protobuf.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/pub": {
+        "args": {
+            "hash": "sha256-CM993m+HEKSaSdmhcu2loXnU4LPaXmW+WwU/kQQhgVU=",
+            "rev": "74408212b5348003381bc63f3b59274aaa23cfa3",
+            "url": "https://dart.googlesource.com/pub.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/shelf": {
+        "args": {
+            "hash": "sha256-Fg009vXFVXF7WVfdXDEQfkg3hx+n2oJS+Y5IJhEe8xY=",
+            "rev": "c4b94d3879e627c0b1fe95d9e1ce5f93ebf122d3",
+            "url": "https://dart.googlesource.com/shelf.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/sync_http": {
+        "args": {
+            "hash": "sha256-AJKHQQJ46ftIWpoGcS7D5Wl50mOwhsehTheVNtlD9VU=",
+            "rev": "6666fff944221891182e1f80bf56569338164d72",
+            "url": "https://dart.googlesource.com/sync_http.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/tar": {
+        "args": {
+            "hash": "sha256-pUIG6LdhG1SWyKHLWzog+3tFBNsUKI1lFCxm7xT7ID8=",
+            "rev": "13479f7c2a18f499e840ad470cfcca8c579f6909",
+            "url": "https://dart.googlesource.com/external/github.com/simolus3/tar.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/test": {
+        "args": {
+            "hash": "sha256-p1DnltJI1RkGrj5dFNjQ/xfKMmpK7V9LrhUfHy+oD5k=",
+            "rev": "bcc5228370ba909e5774441398b8585ba9874423",
+            "url": "https://dart.googlesource.com/test.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/tools": {
+        "args": {
+            "hash": "sha256-I6YUih8kNK+COvY6f7hj8wuUVxfBRR0crBb1tEnL4pc=",
+            "rev": "7f986eaa15f493dd2da081ba0daa49be22fcc2fb",
+            "url": "https://dart.googlesource.com/tools.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/vector_math": {
+        "args": {
+            "hash": "sha256-KPfPmd+qU5nXakelP6kWM3/L5BovfccQtRJv6Nzu2F4=",
+            "rev": "7bf60fb95e0fbbd7648944071de9ab5e32ce7387",
+            "url": "https://dart.googlesource.com/external/github.com/google/vector_math.dart.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/web": {
+        "args": {
+            "hash": "sha256-6cyuB4CLikB1Wwe0Pboi4BrqIM2wsn/JXbf45DQKCxM=",
+            "rev": "e0ea82dd5e737b0c06fcaad6194731fb6f414791",
+            "url": "https://dart.googlesource.com/web.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/webdev": {
+        "args": {
+            "hash": "sha256-My/sHwUl+ZtPbxEdubKUKFCBSQqS+YaZx9pV33gGePM=",
+            "rev": "5b7299f5b85706536aeac1c9f470b869ddb39fef",
+            "url": "https://dart.googlesource.com/webdev.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/webdriver": {
+        "args": {
+            "hash": "sha256-/lXAsf7NHgnOVO/u0TRYSkO1n/OXjXepyNhZsoV8t/I=",
+            "rev": "26326d37c0279f201a59c4114c1389977928c0ca",
+            "url": "https://dart.googlesource.com/external/github.com/google/webdriver.dart.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/dart/third_party/pkg/webkit_inspection_protocol": {
+        "args": {
+            "hash": "sha256-Ejqth4ndAmbcHSHKmfm6eYo/1wvT4kqp5AgQV91blrY=",
+            "rev": "762115a971d1968bc940454ad1e88d506d8c5640",
+            "url": "https://dart.googlesource.com/external/github.com/google/webkit_inspection_protocol.dart.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/depot_tools": {
+        "args": {
+            "hash": "sha256-k+XQSYJQYc9vAUjwrRxaAlX/sK74W45m5byS31hSpwc=",
+            "rev": "580b4ff3f5cd0dcaa2eacda28cefe0f45320e8f7",
+            "url": "https://chromium.googlesource.com/chromium/tools/depot_tools.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/expat": {
+        "args": {
+            "hash": "sha256-zP2kiB4nyLi0/I8OsRhxKG0qRGPe2ALLQ+HHfqlBJ6Y=",
+            "rev": "8e49998f003d693213b538ef765814c7d21abada",
+            "url": "https://chromium.googlesource.com/external/github.com/libexpat/libexpat.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/flatbuffers": {
+        "args": {
+            "hash": "sha256-5iLy1hEBurl6ggvXhOffhdV2JtlIZc2KbrRwqi4KdOQ=",
+            "rev": "067bfdbde9b10c1beb5d6b02d67ae9db8b96f736",
+            "url": "https://chromium.googlesource.com/external/github.com/google/flatbuffers"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/freetype2": {
+        "args": {
+            "hash": "sha256-0ZaK3Ln4iq4TgLktMEcEG8ovYgG5GrpapkHUGfLCg0A=",
+            "rev": "be4bcb57914154fc1b9e2900bf8e4b516057e2b8",
+            "url": "https://flutter.googlesource.com/third_party/freetype2"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/glfw": {
+        "args": {
+            "hash": "sha256-pc/H+5XCKGfSYYWsLKJJnYkRov1JK+gtU5IQ/pqidwo=",
+            "rev": "9352d8fe93cd443be18157abe81f16500549aec0",
+            "url": "https://flutter.googlesource.com/third_party/glfw"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/googletest": {
+        "args": {
+            "hash": "sha256-poGKeFfGfjbi6urmcUXgb0Qw34pI52z4hou4sP0qirc=",
+            "rev": "e9907112b47255d50b4d343e7e2160bce8dc85d1",
+            "url": "https://chromium.googlesource.com/external/github.com/google/googletest"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/gtest-parallel": {
+        "args": {
+            "hash": "sha256-b5cUGeLwrznMX5Q1d9LR7bka+9A3bzp2O+ps3igj9Ro=",
+            "rev": "38191e2733d7cbaeaef6a3f1a942ddeb38a2ad14",
+            "url": "https://chromium.googlesource.com/external/github.com/google/gtest-parallel"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/harfbuzz": {
+        "args": {
+            "hash": "sha256-jQZElINbJgiVj1IHhkrtBCL5jGYzZrjJkO7gt+bgMA4=",
+            "rev": "49844c32a7a3f6be371355a1213c952a3f4a44e7",
+            "url": "https://flutter.googlesource.com/third_party/harfbuzz"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/icu": {
+        "args": {
+            "hash": "sha256-UQWSAekvYc1bTEAEQTPdeB406Uqb0mptpnGRZSaLewo=",
+            "rev": "ee5f27adc28bd3f15b2c293f726d14d2e336cbd5",
+            "url": "https://chromium.googlesource.com/chromium/deps/icu.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/imgui": {
+        "args": {
+            "hash": "sha256-7TLOnxRreJZhOCsD2jqPtwVlor45ynrR4ClEezvlKRQ=",
+            "rev": "2a1b69f05748ad909f03acf4533447cac1331611",
+            "url": "https://flutter.googlesource.com/third_party/imgui.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/inja": {
+        "args": {
+            "hash": "sha256-lUSJ6nDyBxF1DcFyCwIG6Aajm7H8ZZrGc7Qj+cVzAlc=",
+            "rev": "88bd6112575a80d004e551c98cf956f88ff4d445",
+            "url": "https://flutter.googlesource.com/third_party/inja"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/json": {
+        "args": {
+            "hash": "sha256-lN+jiPWGDdiaB2VDg+zhCDl7kkEjvw/3qt5sdT61I70=",
+            "rev": "17d9eacd248f58b73f4d1be518ef649fe2295642",
+            "url": "https://flutter.googlesource.com/third_party/json.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/libcxx": {
+        "args": {
+            "hash": "sha256-oWT5umL52/cUlieGlpO0yn0QWqM9DRTdwMNVHIVLqAU=",
+            "rev": "bd557f6f764d1e40b62528a13b124ce740624f8f",
+            "url": "https://llvm.googlesource.com/llvm-project/libcxx"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/libcxxabi": {
+        "args": {
+            "hash": "sha256-wMMfj3E2AQJxovoSEIuT2uTyrcGBurS1HrHZOmP36+g=",
+            "rev": "a4dda1589d37a7e4b4f7a81ebad01b1083f2e726",
+            "url": "https://llvm.googlesource.com/llvm-project/libcxxabi"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/libjpeg-turbo/src": {
+        "args": {
+            "hash": "sha256-E0nhNQq09sgR31cHyddWbLBmuZM/8FJ5fzfpNkkYB80=",
+            "rev": "0fb821f3b2e570b2783a94ccd9a2fb1f4916ae9f",
+            "url": "https://flutter.googlesource.com/third_party/libjpeg-turbo"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/libpng": {
+        "args": {
+            "hash": "sha256-MFGpjBtMp6GEV9zkNEMZoSFe7DhxUq1ZjGffrhPxANs=",
+            "rev": "b6004397d2ab98f0250376d9b357337b7f422d13",
+            "url": "https://flutter.googlesource.com/third_party/libpng"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/libtess2": {
+        "args": {
+            "hash": "sha256-6Es027JPLhPUUO09SErXPTkpexXNbcwsmeUCGHMAL5I=",
+            "rev": "725e5e08ec8751477565f1d603fd7eb9058c277c",
+            "url": "https://flutter.googlesource.com/third_party/libtess2"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/libwebp": {
+        "args": {
+            "hash": "sha256-Wa33opOFgcmYtycezDUt2f6PqZBse6xYB5kLuSaw95o=",
+            "rev": "ca332209cb5567c9b249c86788cb2dbf8847e760",
+            "url": "https://chromium.googlesource.com/webm/libwebp.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/llvm_libc": {
+        "args": {
+            "hash": "sha256-cZ7a6Exez8aFGnIIJsRy/YuAWSX1t4bLUrnSh/QCtcw=",
+            "rev": "5af39a19a1ad51ce93972cdab206dcd3ff9b6afa",
+            "url": "https://llvm.googlesource.com/llvm-project/libc"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/ocmock": {
+        "args": {
+            "hash": "sha256-5Io2ADZuBNizMroW9I/WGrN/BfpX7gsVp6b43DWAlq8=",
+            "rev": "c4ec0e3a7a9f56cfdbd0aa01f4f97bb4b75c5ef8",
+            "url": "https://flutter.googlesource.com/third_party/ocmock"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/archive": {
+        "args": {
+            "hash": "sha256-UZj7bN1zwdhsWyjW1Ppc4WJPNURFirVDpUK6CVELNo4=",
+            "rev": "f1d164f8f5d8aea0be620a9b1e8d300b75a29388",
+            "url": "https://chromium.googlesource.com/external/github.com/brendan-duncan/archive.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/equatable": {
+        "args": {
+            "hash": "sha256-WAsnU+3q88VpnvZzbKg4QgB4gR2SEjMUFCLYieGTpHk=",
+            "rev": "2117551ff3054f8edb1a58f63ffe1832a8d25623",
+            "url": "https://flutter.googlesource.com/third_party/equatable.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/flutter_packages": {
+        "args": {
+            "hash": "sha256-AdpQeaun0QkuHPMx9AB8IlJj74psNe73DKNICmzty3s=",
+            "rev": "25454e63851fe7933f04d025606e68c1eac4fe0f",
+            "url": "https://flutter.googlesource.com/mirrors/packages"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/gcloud": {
+        "args": {
+            "hash": "sha256-1uWvnpvlFmCVxE119qp2I6ZO7XzTX84MLUTwf2aYg1k=",
+            "rev": "a5276b85c4714378e84b1fb478b8feeeb686ac26",
+            "url": "https://flutter.googlesource.com/third_party/gcloud.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/googleapis": {
+        "args": {
+            "hash": "sha256-s0qdsX+6AurYFUPo7etpfGMO884xvKbib8X9fuHV+vs=",
+            "rev": "526011f56d98eab183cc6075ee1392e8303e43e2",
+            "url": "https://flutter.googlesource.com/third_party/googleapis.dart.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/io": {
+        "args": {
+            "hash": "sha256-cds0krtE6mSmfbsc+YVxyNApnsYsAoZR61X7RH6/DtY=",
+            "rev": "997a6243aad20af4238147d9ec00bf638b9169af",
+            "url": "https://flutter.googlesource.com/third_party/io.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/node_preamble": {
+        "args": {
+            "hash": "sha256-6nS+pq0CJlevmf54hgy19Nn28IEcwu4YvzVIFc/b6sk=",
+            "rev": "47245865175929ec452d8058e563c267b64c3d64",
+            "url": "https://flutter.googlesource.com/third_party/node_preamble.dart.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/process": {
+        "args": {
+            "hash": "sha256-a121J8Ha45AAKC0wftnVSThvPp0iXK7YxLfJokkHuq0=",
+            "rev": "0c9aeac86dcc4e3a6cf760b76fed507107e244d5",
+            "url": "https://dart.googlesource.com/process.dart"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/process_runner": {
+        "args": {
+            "hash": "sha256-BUAxGbGXZ+WFi3Yn+1FAXWPUuksZ0H3bnKjyf+X5lLs=",
+            "rev": "f24c69efdcaf109168f23d381fa281453d2bc9b1",
+            "url": "https://flutter.googlesource.com/third_party/process_runner.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pkg/vector_math": {
+        "args": {
+            "hash": "sha256-e9iVKJZ11h46taZ0Cl1/dm3YVfSYFFAlpNv4+CxM1cE=",
+            "rev": "0a5fd95449083d404df9768bc1b321b88a7d2eef",
+            "url": "https://dart.googlesource.com/external/github.com/google/vector_math.dart.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/pyyaml": {
+        "args": {
+            "hash": "sha256-Eg6+oTIuq4Pqjw3qHkdaURLQrKCgSWHJj8ZR7jtcX/M=",
+            "rev": "03c67afd452cdff45b41bfe65e19a2fb5b80a0e8",
+            "url": "https://flutter.googlesource.com/third_party/pyyaml.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/rapidjson": {
+        "args": {
+            "hash": "sha256-UPB7MB4e/JdkrROLoRl55Dv6SzQj25AKR8SgjLxlfh8=",
+            "rev": "47253cab97e9cfe99dbd6b90836fc11589d7d802",
+            "url": "https://flutter.googlesource.com/third_party/rapidjson"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/re2": {
+        "args": {
+            "hash": "sha256-f/k2rloV2Nwb0KuJGUX4SijFxAx69EXcsXOG4vo+Kis=",
+            "rev": "c84a140c93352cdabbfb547c531be34515b12228",
+            "url": "https://chromium.googlesource.com/external/github.com/google/re2"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/shaderc": {
+        "args": {
+            "hash": "sha256-CnY7e5Prifwm6RKiIhRvOdAzuZSn2hPBoaq3XetYxxc=",
+            "rev": "d15277d6bc180f6a0b8b601f0cab2bbcaac9b4d5",
+            "url": "https://chromium.googlesource.com/external/github.com/google/shaderc"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/skia": {
+        "args": {
+            "hash": "sha256-ifbGde1bs2XoKnNixdWJ14qhOIj+2Fl1P6pOx/rOnho=",
+            "owner": "denialwm",
+            "repo": "skia",
+            "rev": "0ee042f542b3e79f5ac49115387718c6bb3d7d34"
+        },
+        "fetcher": "fetchFromGitHub"
+    },
+    "engine/src/flutter/third_party/sqlite": {
+        "args": {
+            "hash": "sha256-EWnrl9yQrQCfivmvyBSM28eDto6u+jCPpV3fBq9Ryr8=",
+            "rev": "0f61bd2023ba94423b4e4c8cfb1a23de1fe6a21c",
+            "url": "https://flutter.googlesource.com/third_party/sqlite"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/swiftshader": {
+        "args": {
+            "hash": "sha256-APNLYt2cHrtEqyEk4kmzFg4Wib66ok3ZwgPuqvueFhU=",
+            "rev": "794b0cfce1d828d187637e6d932bae484fbe0976",
+            "url": "https://swiftshader.googlesource.com/SwiftShader.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps": {
+        "args": {
+            "hash": "sha256-VGrA8ytOndJV7R6ZG4hGUIwDjBuD/qDEP6gR4MGlVso=",
+            "rev": "a9e2ca3b57aba86a22a2df1b84bf12f8cc98806e",
+            "url": "https://chromium.googlesource.com/vulkan-deps"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/glslang/src": {
+        "args": {
+            "hash": "sha256-/DwdyuSGCx22zsXZrcZGTECfsIqvzPQzTZ2mU8EkjxY=",
+            "rev": "a57276bf558f5cf94d3a9854ebdf5a2236849a5a",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/glslang"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/lunarg-vulkantools/src": {
+        "args": {
+            "hash": "sha256-6Fo3hkIyX4Y3HWQicaQgVN0DVD8oC6AzI+CtS5EZyNI=",
+            "rev": "b9afdd8c070500c375e95acf33c79f0420d59b17",
+            "url": "https://chromium.googlesource.com/external/github.com/LunarG/VulkanTools"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/spirv-cross/src": {
+        "args": {
+            "hash": "sha256-H43M9DXfEuyKuvo6rjb5k0KEbYOSFodbPJh8ZKY4PQg=",
+            "rev": "b8fcf307f1f347089e3c46eb4451d27f32ebc8d3",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/spirv-headers/src": {
+        "args": {
+            "hash": "sha256-gewCQvcVRw+qdWPWRlYUMTt/aXrZ7Lea058WyqL5c08=",
+            "rev": "01e0577914a75a2569c846778c2f93aa8e6feddd",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Headers"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/spirv-tools/src": {
+        "args": {
+            "hash": "sha256-aUk2hcUhMRKBjmnhA3E1xko2TngLrvwqOnEZuvqSI7Q=",
+            "rev": "19042c8921f35f7bec56b9e5c96c5f5691588ca8",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Tools"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/vulkan-headers/src": {
+        "args": {
+            "hash": "sha256-Sg/zp6UhRC5wqBS3vdfs0sQL8cBgLiwvfG0oY0v9MWU=",
+            "rev": "a4f8ada9f4f97c45b8c89c57997be9cebaae65d2",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Headers"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/vulkan-loader/src": {
+        "args": {
+            "hash": "sha256-3BBltVh3M9OnBk1uf+xpaaJaaF9QP9DHeX7tu6ET05Y=",
+            "rev": "f703f919c30c5b67958d35d40a4297cb3823ed78",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Loader"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/vulkan-tools/src": {
+        "args": {
+            "hash": "sha256-E8VEn0s/ZuIIx4sH9ItLx+3+FOPi8gbQ0Ht7iIyYBUU=",
+            "rev": "d643b80d6ba8c191bc289fdda52867c3bb3c190b",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Tools"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/vulkan-utility-libraries/src": {
+        "args": {
+            "hash": "sha256-qcCATZWM0YJ02Dl5VxjvbFYoE2b0r7Ku+ELr2is2VIg=",
+            "rev": "4322db5906e67b57ec9c327e6afe3d98ed893df7",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Utility-Libraries"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan-deps/vulkan-validation-layers/src": {
+        "args": {
+            "hash": "sha256-Zh3dRDbZEIfx85RhpYLWl/oqR4lZLv1qfL+I1riStyI=",
+            "rev": "951aec1ecf22dc84a99a5c8bec9223c5810cc3e1",
+            "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-ValidationLayers"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/vulkan_memory_allocator": {
+        "args": {
+            "hash": "sha256-PnrzYZfTZU02odvmUrD9he1T6O09vhfOfhkvgEBnDHk=",
+            "rev": "c788c52156f3ef7bc7ab769cb03c110a53ac8fcb",
+            "url": "https://chromium.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/wuffs": {
+        "args": {
+            "hash": "sha256-/A772r/xkXBQRcCNIhdIlrlvxoAU3uQ25EolFagIVzo=",
+            "rev": "600cd96cf47788ee3a74b40a6028b035c9fd6a61",
+            "url": "https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/yapf": {
+        "args": {
+            "hash": "sha256-u700Edu18ziS+Pf6nzOwTh9mJPIGiFW0+dFP7sguviM=",
+            "rev": "212c5b5ad8e172d2d914ae454c121c89cccbcb35",
+            "url": "https://flutter.googlesource.com/third_party/yapf"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/flutter/third_party/zlib": {
+        "args": {
+            "hash": "sha256-aKDRy4AJKO2SNDDwge5iesGQCbXKzVTECoJOIBhdQco=",
+            "rev": "7eda07b1e067ef3fd7eea0419c88b5af45c9a776",
+            "url": "https://chromium.googlesource.com/chromium/src/third_party/zlib.git"
+        },
+        "fetcher": "fetchFromGitiles"
+    },
+    "engine/src/third_party/abseil-cpp": {
+        "args": {
+            "hash": "sha256-95e7dNfiWbDYOLmfwh4De78lYBXps5Qyt6zslIp7iFs=",
+            "rev": "564023aa53767b5f60b3a556f0a025b7b7e8241e",
+            "url": "https://chromium.googlesource.com/chromium/src/third_party/abseil-cpp"
+        },
+        "fetcher": "fetchFromGitiles"
+    }
+}
