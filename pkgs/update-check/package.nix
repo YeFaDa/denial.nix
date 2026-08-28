@@ -4,8 +4,8 @@
   makeBinaryWrapper,
   curl,
   jq,
-  git,
   nix,
+  coreutils,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -19,13 +19,11 @@ stdenv.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
     mkdir -p "$out/bin"
-    substitute "${
-      ./update-check.sh
-    }" "$out/bin/denial-update-check" \
+    substitute "${./update-check.sh}" "$out/bin/denial-update-check" \
       --replace-fail '@version@' '${finalAttrs.version}'
     chmod +x "$out/bin/denial-update-check"
     wrapProgram "$out/bin/denial-update-check" \
-      --prefix PATH : "${lib.makeBinPath [ curl jq git nix ]}"
+      --prefix PATH : "${lib.makeBinPath [ curl jq nix coreutils ]}"
     runHook postInstall
   '';
 

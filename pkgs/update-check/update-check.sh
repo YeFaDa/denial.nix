@@ -11,13 +11,13 @@ for arg in "$@"; do
     *) echo "unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
-
 VERSION='@version@'
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing dependency: $1" >&2; exit 1; }; }
-need curl; need jq; need git; need nix; need nix-prefetch-url
+need curl; need jq; need nix; need nix-prefetch-url; need timeout
 
 latest_tag() {
-  curl -fsSL -H 'Accept: application/vnd.github+json' \
+  curl -fsSL --retry 2 --connect-timeout 10 --max-time 30 \
+    -H 'Accept: application/vnd.github+json' \
     "https://api.github.com/repos/denialwm/denial/releases?per_page=100" \
     | jq -r 'map(select(.draft == false)) | .[0].tag_name // empty'
 }
@@ -34,13 +34,15 @@ if [[ "$LATEST" != "v$CURRENT" ]]; then has_update=1; fi
 
 sha256_sri() {
   local url="$1"
-  if command -v nix-prefetch-url >/dev/null 2>&1; then
-    local b32; b32="$(nix-prefetch-url --type sha256 "$url" 2>/dev/null)"
-    nix hash convert --hash-algo sha256 --to sri "$b32" 2>/dev/null || echo "sha256-$b32"
-  else
-    curl -fsSL "$url" -o /tmp/_denial_prefetch; sha256sum /tmp/_denial_prefetch | awk '{print $1}' | xxd -r -p | base64 -w0 | sed 's/^/sha256-/'
-  fi
+  local b32
+  b32="$(timeout 300 nix-prefetch-url --type sha256 "$url")" || {
+    echo "failed to fetch or hash: $url" >&2
+    return 1
+  }
+  nix hash convert --hash-algo sha256 --to sri "$b32"
 }
+
+
 
 NEW_VERSION="${LATEST#v}"
 NEW_DENIAL_URL=""; NEW_DENIAL_SHA256=""; NEW_ENGINE_URL=""; NEW_ENGINE_SHA256=""; NEW_UIDEV_URL=""; NEW_UIDEV_SHA256=""
@@ -50,9 +52,9 @@ if [[ "$has_update" == 1 || "$FORCE" == 1 ]]; then
     NEW_ENGINE_URL="https://github.com/denialwm/denial/releases/download/${LATEST}/denial-flutter-engine-1.${NEW_VERSION}-1-x86_64.pkg.tar.zst"
     NEW_UIDEV_URL="https://github.com/denialwm/denial/releases/download/${LATEST}/denial-ui-development-${NEW_VERSION}-1-x86_64.pkg.tar.zst"
     echo "computing sha256 for $LATEST ..." >&2
-    NEW_DENIAL_SHA256="$(sha256_sri "$NEW_DENIAL_URL" || true)"
-    NEW_ENGINE_SHA256="$(sha256_sri "$NEW_ENGINE_URL" || true)"
-    NEW_UIDEV_SHA256="$(sha256_sri "$NEW_UIDEV_URL" || true)"
+    NEW_DENIAL_SHA256="$(sha256_sri "$NEW_DENIAL_URL")"
+    NEW_ENGINE_SHA256="$(sha256_sri "$NEW_ENGINE_URL")"
+    NEW_UIDEV_SHA256="$(sha256_sri "$NEW_UIDEV_URL")"
   fi
 fi
 
