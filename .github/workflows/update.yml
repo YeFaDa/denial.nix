@@ -19,25 +19,50 @@ jobs:
         id: check
         run: |
           update_check_path="$(nix build .#denial-update-check --no-link --no-write-lock-file --print-out-paths)"
-          "$update_check_path/bin/denial-update-check" --source --json > /tmp/check.json
+          "$update_check_path/bin/denial-update-check" --json > /tmp/check.json
           cat /tmp/check.json
           echo "has_update=$(jq -r .has_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
-          echo "source_update=$(jq -r .source.has_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+          echo "dart_manual_update=$(jq -r .dart_manual_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+          echo "latest=$(jq -r .latest /tmp/check.json)" >> "$GITHUB_OUTPUT"
       - name: Upload update report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: denial-update-report
           path: /tmp/check.json
-      - name: Report update
+      - name: Stop for manual Dart input update
+        if: steps.check.outputs.dart_manual_update == '1'
+        run: |
+          echo "Dart SDK input changed; update nixpkgs-dart and flake.lock manually." >&2
+          exit 1
+      - name: Update pins in the checked-out branch
         if: steps.check.outputs.has_update == '1'
         run: |
-          echo "Release or source pins need maintenance; download denial-update-report." >&2
-          echo "No pins were modified or committed." >&2
-          exit 1
-      - name: Validate current pins
-        if: steps.check.outputs.has_update == '0'
+          latest="$(jq -r .latest /tmp/check.json)"
+          scripts/update-release-pins "$latest"
+      - name: Validate updated pins
+        if: steps.check.outputs.has_update == '1'
         run: nix flake check --all-systems --no-build --no-write-lock-file
-      - name: Build current prebuilt package
-        if: steps.check.outputs.has_update == '0'
+      - name: Build updated prebuilt package
+        if: steps.check.outputs.has_update == '1'
         run: nix build .#denial --no-link --fallback
+      - name: Build updated source package
+        if: steps.check.outputs.has_update == '1'
+        run: NIX_BUILD_CORES=16 nix build .#denial-source --no-link --fallback
+      - name: Create update pull request
+        if: steps.check.outputs.has_update == '1'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/denial-update
+          delete-branch: true
+          commit-message: "chore: update Denial pins"
+          title: "chore: update Denial pins to ${{ steps.check.outputs.latest }}"
+          body: |
+            Generated from one immutable Denial release tag.
+
+            Both the prebuilt and source package paths passed validation and build checks.
+          add-paths: |
+            flake.nix
+            scripts/update-release-pins
+            pkgs
