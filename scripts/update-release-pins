@@ -78,6 +78,8 @@ curl -fsSL "$release_raw/compositor/Cargo.lock" > pkgs/denial/Cargo.lock
 # gclient2nix's current evaluator needs Linux host variables for Flutter DEPS.
 # Patch only a temporary executable; source builds still consume its normal JSON.
 gclient2nix_store="$(nix build nixpkgs#gclient2nix --no-link --print-out-paths)"
+nurl_bin="$(sed -nE "s#^export PATH='([^']*)'.*#\1#p" "$gclient2nix_store/bin/gclient2nix")"
+[[ -x "$nurl_bin/nurl" ]] || { echo "gclient2nix wrapper did not expose nurl" >&2; exit 2; }
 cp "$gclient2nix_store/bin/.gclient2nix-wrapped" "$work/gclient2nix"
 chmod u+w,ugo+rx "$work/gclient2nix"
 python3 - "$work/gclient2nix" <<'PY'
@@ -92,7 +94,7 @@ if text.count(old) != 1:
     raise SystemExit("unsupported gclient2nix evaluator; host variable patch not applied")
 path.write_text(text.replace(old, new, 1))
 PY
-"$work/gclient2nix" generate \
+PATH="$nurl_bin:$PATH" "$work/gclient2nix" generate \
   "https://github.com/denialwm/flutter.git@${flutter_revision}" --root . \
   > pkgs/denial-flutter-engine/gclient-deps.json
 
