@@ -79,6 +79,7 @@ curl -fsSL "$release_raw/compositor/Cargo.lock" > pkgs/denial/Cargo.lock
 # Patch only a temporary executable; source builds still consume its normal JSON.
 gclient2nix_store="$(nix build nixpkgs#gclient2nix --no-link --print-out-paths)"
 cp "$gclient2nix_store/bin/.gclient2nix-wrapped" "$work/gclient2nix"
+chmod u+w,ugo+rx "$work/gclient2nix"
 python3 - "$work/gclient2nix" <<'PY'
 from pathlib import Path
 import sys
@@ -91,7 +92,6 @@ if text.count(old) != 1:
     raise SystemExit("unsupported gclient2nix evaluator; host variable patch not applied")
 path.write_text(text.replace(old, new, 1))
 PY
-chmod +x "$work/gclient2nix"
 "$work/gclient2nix" generate \
   "https://github.com/denialwm/flutter.git@${flutter_revision}" --root . \
   > pkgs/denial-flutter-engine/gclient-deps.json
