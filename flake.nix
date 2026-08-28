@@ -20,6 +20,10 @@
           denial-flutter-engine = if isX86 then pkgs.denial-flutter-engine else pkgs.denial-flutter-engine-source;
           denial-flutter-shell = if isX86 then pkgs.denial-flutter-shell else pkgs.denial-flutter-shell-source;
           inherit (pkgs) denial-flutter-engine-source denial-flutter-shell-source;
+          "denial-update-check" = pkgs.updateCheck;
+        } // nixpkgs.lib.optionalAttrs isX86 {
+          "denial-settings" = pkgs.denialSettings;
+          "denial-ui-development" = pkgs.denialUiDevelopment;
         };
     in
     {
@@ -78,15 +82,21 @@
             denial-flutter-engine-source = engineSource;
             denial-flutter-shell-source = shellSource;
           };
+          denialSettings = final.callPackage ./pkgs/denial-settings/package.nix { };
+          denialUiDevelopment = final.callPackage ./pkgs/denial-ui-development/package.nix { };
+          updateCheck = final.callPackage ./pkgs/update-check/package.nix { };
         in
         {
           denial-flutter-engine = enginePrebuilt;
           denial-flutter-shell = shellPrebuilt;
           inherit denial;
+          inherit denialSettings denialUiDevelopment updateCheck;
+          "denial-settings" = denialSettings;
+          "denial-ui-development" = denialUiDevelopment;
+          "denial-update-check" = updateCheck;
           denial-flutter-engine-source = engineSource;
           denial-flutter-shell-source = shellSource;
         };
-
       packages = nixpkgs.lib.genAttrs systems mkPackages;
 
       nixosModules.denial = import ./nix/module.nix;

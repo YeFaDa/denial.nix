@@ -15,15 +15,15 @@
 # instead. The compositor verifies the engine's SHA-256 fingerprint of the
 # runtime bundle at startup, so this artifact must stay coupled to the denial
 # package version.
+let
+  prebuilt = import ../prebuilt-hashes.nix;
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-engine";
   version = import ../version.nix;
 
   src = fetchurl {
-    # Upstream names the artifact with Arch's epoch prefix: epoch 1 +
-    # version 0.2.10 => denial-flutter-engine-1.0.2.10-1-x86_64.pkg.tar.zst
-    url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-flutter-engine-1.${finalAttrs.version}-1-x86_64.pkg.tar.zst";
-    hash = "sha256-sNcM8UlBeJYbfb51ehOJWQTgOnJmEHUCUYMoO+Plfw0=";
+    inherit (prebuilt.engine) url hash;
   };
 
   nativeBuildInputs = [

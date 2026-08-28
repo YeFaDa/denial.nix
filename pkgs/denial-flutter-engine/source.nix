@@ -190,11 +190,12 @@ EOF
 
     mkdir -p "$dev/engine-build/out"
     cp -a "$output" "$dev/engine-build/out/denial_host_release"
+    test -d "$dev/engine-build/out/denial_host_release/flutter_linux" || (echo "missing flutter_linux in dev output" >&2; exit 1)
+    test -f "$dev/engine-build/out/denial_host_release/flutter_patched_sdk/platform_strong.dill" || (echo "missing platform_strong.dill" >&2; exit 1)
 
     mkdir -p "$dev/flutter/sky/packages" "$dev/flutter/lib"
     cp -a flutter/sky/packages/sky_engine "$dev/flutter/sky/packages/"
     cp -a flutter/lib/gpu "$dev/flutter/lib/" 2>/dev/null || true
-    install -Dm444 flutter/LICENSE "$out/share/licenses/${finalAttrs.pname}/LICENSE"
     install -Dm444 flutter/LICENSE "$dev/flutter/LICENSE"
     runHook postInstall
   '';

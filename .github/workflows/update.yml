@@ -1,0 +1,38 @@
+name: Auto-update Denial pins
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # daily
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Check for updates
+        id: check
+        run: |
+          nix build .#denial-update-check --no-link --print-out-paths | xargs -I{} {}/bin/denial-update-check --json > /tmp/check.json
+          cat /tmp/check.json
+          echo "has_update=$(jq -r .has_update /tmp/check.json)" >> "$GITHUB_OUTPUT"
+      - name: Update pins
+        if: steps.check.outputs.has_update == '1'
+        run: |
+          # Example: if has_update, the check output contains new hashes.
+          # For now we only open an issue; manual `denial-update-check` printout guides the maintainer.
+          # To auto-commit, run the same steps as README Updating and commit with git-auto-commit.
+          echo "Update available — see job log for fields to update in pkgs/version.nix, pkgs/prebuilt-hashes.nix, etc."
+          exit 0
+      - name: Validate
+        if: steps.check.outputs.has_update == '1'
+        run: |
+          nix flake check --all-systems --no-build --no-write-lock-file
+      - name: Build prebuilt
+        if: steps.check.outputs.has_update == '1'
+        run: nix build .#denial --no-link --fallback
