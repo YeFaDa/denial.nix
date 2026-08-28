@@ -6,7 +6,6 @@
   outputs = { self, nixpkgs, nixpkgs-dart }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
-      isX86 = system: system == "x86_64-linux";
 
       mkPackages = system:
         let
@@ -14,34 +13,31 @@
             inherit system;
             overlays = [ self.overlays.default ];
           };
+          isX86 = system == "x86_64-linux";
         in
         {
-          inherit (pkgs)
-            denial
-            denial-flutter-engine
-            denial-flutter-shell
-            denial-source
-            denial-flutter-engine-source
-            denial-flutter-shell-source
-            ;
-        }
-        // nixpkgs.lib.optionalAttrs (isX86 system) {
-          denial-prebuilt = pkgs.denial-prebuilt;
+          denial = if isX86 then pkgs.denial else pkgs.denial.override { useSource = true; };
+          denial-flutter-engine = if isX86 then pkgs.denial-flutter-engine else pkgs.denial-flutter-engine-source;
+          denial-flutter-shell = if isX86 then pkgs.denial-flutter-shell else pkgs.denial-flutter-shell-source;
+          inherit (pkgs) denial-flutter-engine-source denial-flutter-shell-source;
         };
     in
     {
       overlays.default = final: prev:
         let
-          isX86 = prev.stdenv.hostPlatform.system == "x86_64-linux";
+          revisions = import ./pkgs/denial-flutter-engine/revisions.nix { lib = final.lib; };
 
           enginePrebuilt = final.callPackage ./pkgs/denial-flutter-engine/package.nix { };
           shellPrebuilt = final.callPackage ./pkgs/denial-flutter-shell/package.nix { };
+          gclient2nix = final.gclient2nix;
           dartSdkSource = nixpkgs-dart.legacyPackages.${prev.stdenv.hostPlatform.system}.dart-bin;
           engineSource = final.callPackage ./pkgs/denial-flutter-engine/source.nix {
             dart = dartSdkSource;
+            inherit gclient2nix revisions;
           };
           flutterToolsSource = final.callPackage ./pkgs/denial-flutter-engine/flutter-tools.nix {
             dart = dartSdkSource;
+            inherit gclient2nix revisions;
             sdkSourceBuilders = {
               flutter = name:
                 final.runCommand "denial-flutter-sdk-${name}" {
@@ -58,38 +54,28 @@
           };
           flutterSdkSource = final.callPackage ./pkgs/denial-flutter-engine/flutter-sdk.nix {
             dart = dartSdkSource;
+            inherit gclient2nix;
             flutterTools = flutterToolsSource;
           };
           shellSource = final.callPackage ./pkgs/denial-flutter-shell/source.nix {
             flutter = flutterSdkSource;
             denial-flutter-engine-source = engineSource;
+            inherit revisions;
           };
 
-          denialPrebuilt = final.callPackage ./pkgs/denial/package.nix {
-            denial-flutter-engine = enginePrebuilt;
-            denial-flutter-shell = shellPrebuilt;
+          denial = final.callPackage ./pkgs/denial/package.nix {
+            denial-flutter-engine-prebuilt = enginePrebuilt;
+            denial-flutter-shell-prebuilt = shellPrebuilt;
+            denial-flutter-engine-source = engineSource;
+            denial-flutter-shell-source = shellSource;
           };
-          denialSource = (final.callPackage ./pkgs/denial/package.nix {
-            denial-flutter-engine = engineSource;
-            denial-flutter-shell = shellSource;
-          }).overrideAttrs (old: {
-            meta = old.meta // {
-              platforms = [ "x86_64-linux" "aarch64-linux" ];
-              sourceProvenance = [ final.lib.sourceTypes.fromSource ];
-              hydraPlatforms = [ ];
-            };
-          });
         in
         {
-          denial-flutter-engine = if isX86 then enginePrebuilt else engineSource;
-          denial-flutter-shell = if isX86 then shellPrebuilt else shellSource;
-          denial = if isX86 then denialPrebuilt else denialSource;
-          denial-source = denialSource;
+          denial-flutter-engine = enginePrebuilt;
+          denial-flutter-shell = shellPrebuilt;
+          inherit denial;
           denial-flutter-engine-source = engineSource;
           denial-flutter-shell-source = shellSource;
-        }
-        // nixpkgs.lib.optionalAttrs isX86 {
-          denial-prebuilt = denialPrebuilt;
         };
 
       packages = nixpkgs.lib.genAttrs systems mkPackages;

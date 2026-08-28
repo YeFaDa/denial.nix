@@ -29,9 +29,19 @@
   xwayland,
   zenity,
 
-  denial-flutter-engine,
-  denial-flutter-shell,
-}: 
+  denial-flutter-engine-prebuilt,
+  denial-flutter-shell-prebuilt,
+  denial-flutter-engine-source,
+  denial-flutter-shell-source,
+  useSource ? false,
+}:
+
+let
+  denial-flutter-engine =
+    if useSource then denial-flutter-engine-source else denial-flutter-engine-prebuilt;
+  denial-flutter-shell =
+    if useSource then denial-flutter-shell-source else denial-flutter-shell-prebuilt;
+in
 
 # Packaging model (mirrors niri's nixpkgs package for the Rust part):
 #
@@ -221,8 +231,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
     changelog = "https://github.com/denialwm/denial/releases/tag/v${finalAttrs.version}";
     license = with lib.licenses; [ gpl3Plus cc-by-sa-40 ofl ];
     mainProgram = "deniald";
-    platforms = [ "x86_64-linux" ];
-    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
+    platforms = [ "x86_64-linux" "aarch64-linux" ];
+    sourceProvenance = with lib.sourceTypes; if useSource then [ fromSource ] else [ binaryNativeCode ];
     hydraPlatforms = [ ];
   };
 })

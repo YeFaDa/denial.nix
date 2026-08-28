@@ -10,7 +10,8 @@
   unzip,
   which,
   denial-flutter-engine-source,
-}:
+  revisions,
+}: 
 
 let
   version = import ../version.nix;
@@ -70,7 +71,7 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
     cp -a --no-preserve=mode "${flutter}/." "$FLUTTER_ROOT"
     chmod -R u+w "$FLUTTER_ROOT"
     export PATH="$FLUTTER_ROOT/bin:$PATH"
-    engine_revision="b20ca326b99f27e33a416ba684333b2a20f711a9"
+    engine_revision="${revisions.flutter}"
     cat > "$FLUTTER_ROOT/bin/cache/engine_stamp.json" <<EOF
     {
       "build_time_ms": 0,

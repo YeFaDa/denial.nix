@@ -11,9 +11,18 @@ Wayland compositor, written in the style of the niri package in nixpkgs.
 | `libflutter_engine.so`, `icudtl.dat` | `denial-flutter-engine` | upstream release artifact | locked Flutter/Skia sources with GN/Ninja |
 | `libapp.so`, `flutter_assets` | `denial-flutter-shell` | upstream release artifact | `buildFlutterApplication` with the matching local engine |
 
-The flake's default `denial` output keeps the prebuilt x86-64 Flutter runtime.
-`denial-source` builds the engine and Dart shell from source and is available
-on both `x86_64-linux` and `aarch64-linux`. The latter has no prebuilt output.
+The default `denial` package always builds `deniald`, `denialctl`, and
+`denial-portal` from Rust source. Its `useSource` option selects only the
+Flutter runtime pair:
+
+```nix
+pkgs.denial.override { useSource = true; }
+```
+
+With `useSource = false` (the default), Flutter engine and shell artifacts are
+prebuilt. With `useSource = true`, both are built from the locked Flutter/Skia
+source inputs. The package does not infer this choice from the host architecture.
+The separate engine and shell source outputs remain available for inspection.
 
 The source engine checkout is assembled with nixpkgs' `gclient2nix` format from
 the pinned Flutter `DEPS` graph. The build does not run `gclient sync`, access a
@@ -77,6 +86,20 @@ Build (compositor from source + prebuilt Flutter artifacts):
 ```console
 $ nix build github:YeFaDa/denial.nix#denial
 ```
+
+To select source Flutter artifacts, override the single package option:
+
+```console
+$ nix build --expr '
+  let pkgs = builtins.getFlake (toString ./.).packages.x86_64-linux;
+  in pkgs.denial.override { useSource = true; }
+'
+```
+
+The package name remains `denial`; `deniald`, `denialctl`, and
+`denial-portal` are always built from Rust source. `useSource` controls only
+the Flutter engine and shell pair. The package does not infer the choice from
+the host architecture.
 
 Or install to your user profile and launch `denial-session` from a TTY:
 
@@ -149,44 +172,58 @@ Notes:
 ### Source builds
 
 Source packages use one coupled toolchain. The Flutter fork, Skia fork, Dart
-checkout, Flutter tools snapshot, local engine, and Dart shell AOT output must
-come from compatible revisions. Do not update only one of these inputs.
+SDK, Flutter tools snapshot, local engine, and Dart shell AOT output must come
+from compatible revisions. Do not update only one of these inputs.
 
 1. Read the new release's `prebuilt/flutter-engine/SOURCE_LOCK.json` and update
    `pkgs/denial-flutter-engine/gclient-deps.json` from its complete `DEPS`
-   graph. Keep every fetched dependency pinned by revision and hash; do not use
-   `gclient sync` or a developer checkout inside a Nix build.
-2. Update the independent `nixpkgs-dart` input in `flake.nix` and `flake.lock`
-   to a nixpkgs revision whose `dart-bin` exactly matches the Dart revision
-   required by the new Flutter fork. On Linux, use `dart-bin`, not `dart`:
-   historical nixpkgs may define `dart` as the source-built package.
-3. Update `pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json` from
+   graph. Keep every fetched dependency pinned by revision and hash. The Nix
+   build must not run `gclient sync`, access a developer checkout, or use a
+   mutable cache.
+2. Keep `pkgs/denial-flutter-engine/revisions.nix` as the only revision
+   interface. It derives the Flutter, Dart, and Skia revisions from
+   `gclient-deps.json`; do not copy revision literals into
+   `pkgs/denial-flutter-engine/source.nix`,
+   `pkgs/denial-flutter-engine/flutter-tools.nix`,
+   `pkgs/denial-flutter-shell/source.nix`, or `flake.nix`.
+3. Update the independent `nixpkgs-dart` input in `flake.nix` and `flake.lock`
+   to a nixpkgs revision whose `dart-bin` exactly matches the Dart SDK revision
+   required by the new Flutter fork. For the current historical package,
+   update it with:
+   `nix flake lock --update-input nixpkgs-dart`.
+   On Linux use `dart-bin`, not `dart`: historical nixpkgs may define `dart` as
+   the source-built package. Verify the selected package version and revision
+   before building.
+4. Update `pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json` from
    `packages/flutter_tools/pubspec.yaml` using the matching Dart SDK. The lock
    must be the `flutter_tools` package lock, not Flutter's root workspace lock.
-4. Update `pkgs/denial-flutter-shell/pubspec.lock.json` from `dart_shell` with
-   the matching Flutter/Dart tools. Preserve the SDK package entries and all
-   hosted package hashes so `pub2nix` can construct the dependency closure.
-5. Update the fixed resource inputs in
+5. Update `pkgs/denial-flutter-shell/pubspec.lock.json` from `dart_shell` with
+   the matching Flutter/Dart tools. Preserve SDK package entries and all hosted
+   package hashes so `pub2nix` can construct the dependency closure.
+6. Update fixed Flutter resource inputs in
    `pkgs/denial-flutter-shell/source.nix` when the new Flutter revision changes
    `material_fonts.version` or `gradle_wrapper.version`. Both archives need
    fixed hashes. Engine-only resources must come from the matching local engine
-   output, not from a different Flutter generation.
-6. Keep SDK hash verification enabled. Nix source projections must not create
-   synthetic Git commits. Instead, inject the locked Dart revision through
-   `third_party/dart/tools/GIT_REVISION` and pass the locked Flutter, Skia, and
-   Dart revisions to the GN source projection. VM, `platform_strong.dill`,
-   `gen_snapshot`, and the AOT kernel must share the same first ten bytes of
-   the Dart SDK revision.
-7. Run the static check before any long build:
+   output, never from another Flutter generation.
+7. Keep SDK hash verification enabled. Do not create synthetic Git commits in
+   the Nix source projection and do not disable `verify_sdk_hash`. The engine
+   projection injects the locked Dart revision through `tools/GIT_REVISION`,
+   while `revisions.nix` supplies the locked Flutter, Skia, and Dart revisions
+   to GN. VM, `platform_strong.dill`, `gen_snapshot`, and the AOT kernel must
+   share the same first ten bytes of the Dart SDK revision.
+8. Run the static check before any long build:
    `nix flake check --all-systems --no-build --no-write-lock-file`.
-8. Build the source package only after the inputs and checks pass:
-   `nix build .#denial-flutter-shell-source --no-link --fallback`.
+9. Choose the engine build parallelism with `NIX_BUILD_CORES`; the derivation
+   passes it to Ninja and defaults to one job when it is unset. For example:
+   `NIX_BUILD_CORES=16 nix build .#denial-flutter-shell-source --no-link --fallback`.
    This builds the engine first, then the shell AOT snapshot. Verify that the
    result contains `libapp.so`, `flutter_assets`, and the matching local engine
    generation.
-9. Build `.#denial-source` only after the engine and shell source outputs pass.
-   Build `.#denial` separately to confirm the default prebuilt x86-64 path was
-   not regressed.
+10. Build `denial` with the desired Flutter runtime mode. The package always
+   builds the Rust compositor from source; set `useSource = true` only when the
+   locked Flutter/Skia engine and shell should also be rebuilt from source.
+   The default `useSource = false` selects the prebuilt Flutter runtime on
+   x86-64. The package itself does not infer the choice from the host.
 
 Never mix a source shell with a prebuilt engine, or a source engine with a
 prebuilt shell. If the Dart SDK revision changes, rebuild the engine before

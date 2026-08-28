@@ -23,6 +23,7 @@
   wayland,
   zlib,
   dart,
+  revisions,
 }: 
 
 let
@@ -32,8 +33,9 @@ let
     if stdenv.hostPlatform.isx86_64 then "x64"
     else if stdenv.hostPlatform.isAarch64 then "arm64"
     else throw "unsupported host platform: ${stdenv.hostPlatform.system}";
+  devtoolsSharedDetails = (lib.importJSON ./flutter-tools-pubspec.lock.json).packages.devtools_shared;
   devtoolsShared = fetchurl {
-    url = "https://pub.dev/api/archives/devtools_shared-12.1.0.tar.gz";
+    url = "https://pub.dev/api/archives/${devtoolsSharedDetails.description.name}-${devtoolsSharedDetails.version}.tar.gz";
     hash = "sha256-La96n7pqRwZosm7L0EIA97+ZKq2BosMdEkV8d5FBneo=";
   };
 
@@ -93,7 +95,7 @@ stdenv.mkDerivation (finalAttrs: {
     patchShebangs tools/gn
 
     mkdir -p third_party/gn third_party/dart/build/config third_party/dart/tools/sdks
-    printf '%s\n' d684a576a6aa954ae107a03b2b4e1d61c3bebe93 \
+    printf '%s\n' ${revisions.dart} \
       > third_party/dart/tools/GIT_REVISION
     python3 - <<'PY'
 from pathlib import Path
@@ -127,16 +129,15 @@ EOF
     if [ -f shell/platform/linux/fl_view_accessible.cc ]; then
       sed -i '7,9c#include <atk/atk.h>' shell/platform/linux/fl_view_accessible.cc
     fi
-
     substituteInPlace tools/gn \
       --replace-fail "revision_args['engine_version'] = get_repository_version(engine_path)" \
-        "revision_args['engine_version'] = 'b20ca326b99f27e33a416ba684333b2a20f711a9'" \
+        "revision_args['engine_version'] = '${revisions.flutter}'" \
       --replace-fail "revision_args['content_hash'] = get_content_hash()" \
-        "revision_args['content_hash'] = 'b20ca326b99f27e33a416ba684333b2a20f711a9'" \
+        "revision_args['content_hash'] = '${revisions.flutter}'" \
       --replace-fail "revision_args['skia_version'] = get_repository_version(skia_path)" \
-        "revision_args['skia_version'] = '0ee042f542b3e79f5ac49115387718c6bb3d7d34'" \
+        "revision_args['skia_version'] = '${revisions.skia}'" \
       --replace-fail "revision_args['dart_version'] = get_repository_version(get_dart_path())" \
-        "revision_args['dart_version'] = 'd684a576a6aa954ae107a03b2b4e1d61c3bebe93'"
+        "revision_args['dart_version'] = '${revisions.dart}'"
     cd ..
   '';
 
@@ -150,7 +151,6 @@ EOF
     tar -xzf "${devtoolsShared}" \
       -C flutter/third_party/dart/third_party/devtools/devtools_shared
     buildRoot="$TMPDIR/denial-flutter-engine-build"
-    python3 ./flutter/tools/pub_get_offline.py
     (cd flutter/third_party/dart && ${dart}/bin/dart pub get --offline)
     (cd flutter && ${dart}/bin/dart pub get --offline)
 
@@ -164,7 +164,7 @@ EOF
       --gn-args='host_pkg_config="${pkg-config}/bin/pkg-config"' \
       ${lib.optionalString stdenv.hostPlatform.isAarch64 "--target-os=linux --linux-cpu=arm64"}
 
-    ${ninja}/bin/ninja -C "$buildRoot/out/denial_host_release" -j19 \
+    ${ninja}/bin/ninja -C "$buildRoot/out/denial_host_release" -j"''${NIX_BUILD_CORES:-1}" \
       dart_sdk \
       flutter_patched_sdk/platform_strong.dill \
       libflutter_engine.so gen_snapshot libflutter_linux_gtk.so \
@@ -188,16 +188,21 @@ EOF
     patchelf --set-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
       "$out/lib/denial/flutter/lib/libflutter_engine.so"
 
-    mkdir -p "$dev/engine-build" "$dev/flutter"
-    cp -a "$TMPDIR/denial-flutter-engine-build/." "$dev/engine-build/"
-    cp -a flutter/. "$dev/flutter/"
-    install -Dm755 "$output/gen_snapshot" "$dev/gen_snapshot"
-    cp -a "$output/dart-sdk" "$dev/engine-build/dart-sdk"
-    cp -a "$output/flutter_patched_sdk" "$dev/engine-build/flutter_patched_sdk"
-    cp -a "$output/gen" "$dev/engine-build/gen"
-    install -Dm755 "$output/gen_snapshot" "$dev/gen_snapshot"
-    install -Dm755 "$output/font-subset" "$dev/font-subset"
+    mkdir -p "$dev/engine-build/out/denial_host_release"
+    cp -a "$output/flutter_patched_sdk" "$dev/engine-build/out/denial_host_release/"
+    cp -a "$output/gen" "$dev/engine-build/out/denial_host_release/"
+    install -Dm755 "$output/gen_snapshot" "$dev/engine-build/out/denial_host_release/gen_snapshot"
+    install -Dm755 "$output/font-subset" "$dev/engine-build/out/denial_host_release/font-subset"
+    install -Dm444 "$output/icudtl.dat" "$dev/engine-build/out/denial_host_release/icudtl.dat"
+    install -Dm555 "$output/libflutter_linux_gtk.so" "$dev/engine-build/out/denial_host_release/libflutter_linux_gtk.so"
+    cp -a "$output/flutter_linux" "$dev/engine-build/out/denial_host_release/" 2>/dev/null || true
+
+    mkdir -p "$dev/flutter/packages" "$dev/flutter/sky/packages" "$dev/flutter/lib"
+    cp -a flutter/packages/. "$dev/flutter/packages/"
+    cp -a flutter/sky/packages/sky_engine "$dev/flutter/sky/packages/"
+    cp -a flutter/lib/gpu "$dev/flutter/lib/" 2>/dev/null || true
     install -Dm444 flutter/LICENSE "$out/share/licenses/${finalAttrs.pname}/LICENSE"
+    install -Dm444 flutter/LICENSE "$dev/flutter/LICENSE"
     runHook postInstall
   '';
 
