@@ -21,6 +21,7 @@
           denial-flutter-engine = if isX86 then pkgs.denial-flutter-engine else pkgs.denial-flutter-engine-source;
           denial-flutter-shell = if isX86 then pkgs.denial-flutter-shell else pkgs.denial-flutter-shell-source;
           inherit (pkgs) denial-flutter-engine-source denial-flutter-shell-source;
+          "gclient2nix-linux" = pkgs.gclient2nixLinux;
           "denial-update-check" = pkgs.updateCheck;
         } // nixpkgs.lib.optionalAttrs isX86 {
           "denial-settings" = pkgs.denialSettings;
@@ -44,6 +45,17 @@
           enginePrebuilt = final.callPackage ./pkgs/denial-flutter-engine/package.nix { };
           shellPrebuilt = final.callPackage ./pkgs/denial-flutter-shell/package.nix { };
           gclient2nix = final.gclient2nix;
+          gclient2nixLinux = final.runCommand "gclient2nix-linux" {
+            nativeBuildInputs = [ final.makeWrapper ];
+          } ''
+            mkdir -p "$out/bin"
+            cp ${final.gclient2nix}/bin/.gclient2nix-wrapped "$out/bin/gclient2nix"
+            chmod u+w "$out/bin/gclient2nix"
+            substituteInPlace "$out/bin/gclient2nix" \
+              --replace-fail 'else None,' 'else {"host_os": "linux", "host_cpu": "x64"},'
+            wrapProgram "$out/bin/gclient2nix" \
+              --set PATH ${final.lib.makeBinPath [ final.nurl ]}
+          '';
           dartSdkSource = nixpkgs-dart.legacyPackages.${prev.stdenv.hostPlatform.system}.dart-bin;
           engineSource = final.callPackage ./pkgs/denial-flutter-engine/source.nix {
             dart = dartSdkSource;
@@ -90,8 +102,7 @@
         {
           denial-flutter-engine = enginePrebuilt;
           denial-flutter-shell = shellPrebuilt;
-          inherit denial;
-          inherit denialSettings denialUiDevelopment updateCheck;
+          inherit denial denialSettings denialUiDevelopment updateCheck gclient2nixLinux;
           "denial-settings" = denialSettings;
           "denial-ui-development" = denialUiDevelopment;
           "denial-update-check" = updateCheck;

@@ -79,26 +79,12 @@ curl -fsSL "$release_raw/dart_shell/pubspec.lock" \
   > pkgs/denial-flutter-shell/pubspec.lock.json
 curl -fsSL "$release_raw/compositor/Cargo.lock" > pkgs/denial/Cargo.lock
 
-# gclient2nix's current evaluator needs Linux host variables for Flutter DEPS.
-# Patch only a temporary executable; source builds still consume its normal JSON.
-gclient2nix_store="$(nix build nixpkgs#gclient2nix --no-link --print-out-paths)"
-nurl_bin="$(sed -nE "s#^export PATH='([^']*)'.*#\1#p" "$gclient2nix_store/bin/gclient2nix")"
-[[ -x "$nurl_bin/nurl" ]] || { echo "gclient2nix wrapper did not expose nurl" >&2; exit 2; }
-cp "$gclient2nix_store/bin/.gclient2nix-wrapped" "$work/gclient2nix"
-chmod u+w,ugo+rx "$work/gclient2nix"
-python3 - "$work/gclient2nix" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text()
-old = '            builtin_vars= {"host_cpu": "*host_cpu_placeholder*"} if path == "src/third_party/webpagereplay" else None,'
-new = '            builtin_vars = ({"host_os": "linux", "host_cpu": "x64"} if path == "" else ({"host_cpu": "*host_cpu_placeholder*"} if path == "src/third_party/webpagereplay" else {"host_os": "linux", "host_cpu": "x64"})),'
-if text.count(old) != 1:
-    raise SystemExit("unsupported gclient2nix evaluator; host variable patch not applied")
-path.write_text(text.replace(old, new, 1))
-PY
-PATH="$nurl_bin:$PATH" "$work/gclient2nix" generate \
+gclient2nix_linux="$(nix build .#gclient2nix-linux --no-link --no-write-lock-file --print-out-paths)"
+[[ -x "$gclient2nix_linux/bin/gclient2nix" ]] || {
+  echo "gclient2nix-linux package is missing its executable" >&2
+  exit 2
+}
+PATH="$gclient2nix_linux/bin:$PATH" gclient2nix generate \
   "https://github.com/denialwm/flutter.git@${flutter_revision}" --root . \
   > pkgs/denial-flutter-engine/gclient-deps.json
 
