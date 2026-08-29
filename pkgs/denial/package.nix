@@ -33,6 +33,8 @@
   denial-flutter-shell-prebuilt,
   denial-flutter-engine-source,
   denial-flutter-shell-source,
+  denial-settings-prebuilt ? null,
+  denial-settings-source ? null,
   useSource ? false,
 }:
 
@@ -41,6 +43,8 @@ let
     if useSource then denial-flutter-engine-source else denial-flutter-engine-prebuilt;
   denial-flutter-shell =
     if useSource then denial-flutter-shell-source else denial-flutter-shell-prebuilt;
+  denialSettings =
+    if useSource then denial-settings-source else denial-settings-prebuilt;
 in
 
 # Packaging model (mirrors niri's nixpkgs package for the Rust part):
@@ -183,7 +187,17 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$bundle/lib/libflutter_engine.so"
     ln -s "${lib.getLib denial-flutter-engine}/lib/denial/flutter/data/icudtl.dat" \
       "$bundle/data/icudtl.dat"
-
+  '' + lib.optionalString (denialSettings != null) ''
+    mkdir -p "$out/share/applications"
+    ln -s "${denialSettings}/bin/denial-settings" \
+      "$out/bin/denial-settings"
+    ln -s "${denialSettings}/lib/denial/settings" \
+      "$out/lib/denial/settings"
+    if [ -e "${denialSettings}/share/applications/dev.denial.Settings.desktop" ]; then
+      ln -s "${denialSettings}/share/applications/dev.denial.Settings.desktop" \
+        "$out/share/applications/dev.denial.Settings.desktop"
+    fi
+  '' + ''
     install -Dm555 packaging/arch/denial-session "$out/bin/denial-session"
     wrapProgram "$out/bin/denial-session" \
       --prefix PATH : "${lib.makeBinPath [

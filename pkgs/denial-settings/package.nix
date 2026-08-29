@@ -12,12 +12,15 @@
   atk,
   gdk-pixbuf,
   libglvnd,
+  denialSettingsSource ? null,
+  useSource ? false,
 }:
 
 let
   prebuilt = import ../prebuilt-hashes.nix;
 in
-stdenv.mkDerivation (finalAttrs: {
+assert !useSource || denialSettingsSource != null;
+if useSource then denialSettingsSource else stdenv.mkDerivation (finalAttrs: {
   pname = "denial-settings";
   version = import ../version.nix;
 

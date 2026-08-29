@@ -163,9 +163,12 @@ Notes:
 - Xwayland, zenity and systemd are already on the session PATH by default.
 - CJK fallback fonts (upstream ships `adobe-source-han-sans-cn-fonts`) are a
   fontconfig concern; add a CJK font to `fonts.packages` if needed.
-- `denial-settings` and `denial-ui-development` are optional x86-64 packages.
-  They are not runtime dependencies of `denial`; install them explicitly when
-  needed.
+- The `denial` package includes `denial-settings` and its desktop entry.
+  x86-64 uses the prebuilt Settings bundle by default; aarch64 uses the
+  source-built bundle. The standalone `denial-settings-source` output is
+  available for explicitly selecting the source build.
+- `denial-ui-development` is an optional x86-64 package and is not a runtime
+  dependency of `denial`.
 - The NixOS module enables hardware graphics support, rtkit, the graphical
   desktop stack, Polkit, dconf, Xwayland and xdg-desktop-portal by default
   (matching the base integration of the nixpkgs niri module); every setting

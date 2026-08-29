@@ -23,8 +23,10 @@
           inherit (pkgs) denial-flutter-engine-source denial-flutter-shell-source;
           "gclient2nix-linux" = pkgs.gclient2nixLinux;
           "denial-update-check" = pkgs.updateCheck;
+        } // {
+          "denial-settings" = if isX86 then pkgs.denialSettings else pkgs.denialSettings.override { useSource = true; };
+          "denial-settings-source" = pkgs.denialSettings.override { useSource = true; };
         } // nixpkgs.lib.optionalAttrs isX86 {
-          "denial-settings" = pkgs.denialSettings;
           "denial-ui-development" = pkgs.denialUiDevelopment;
         };
     in
@@ -88,17 +90,27 @@
             denial-flutter-engine-source = engineSource;
             inherit revisions materialFonts gradleWrapper;
           };
-
+          settingsSource = final.callPackage ./pkgs/denial-settings/source.nix {
+            dart = dartSdkSource;
+            flutter = flutterSdkSource;
+            denial-flutter-engine-source = engineSource;
+            inherit revisions materialFonts gradleWrapper;
+          };
+          denialSettings = final.callPackage ./pkgs/denial-settings/package.nix {
+            denialSettingsSource = settingsSource;
+          };
           denial = final.callPackage ./pkgs/denial/package.nix {
             denial-flutter-engine-prebuilt = enginePrebuilt;
             denial-flutter-shell-prebuilt = shellPrebuilt;
             denial-flutter-engine-source = engineSource;
             denial-flutter-shell-source = shellSource;
+            denial-settings-prebuilt = denialSettings;
+            denial-settings-source = settingsSource;
+            useSource = final.stdenv.hostPlatform.system != "x86_64-linux";
           };
-          denialSettings = final.callPackage ./pkgs/denial-settings/package.nix { };
           denialUiDevelopment = final.callPackage ./pkgs/denial-ui-development/package.nix { };
           updateCheck = final.callPackage ./pkgs/update-check/package.nix { dart = dartSdkSource; };
-        in
+         in
         {
           denial-flutter-engine = enginePrebuilt;
           denial-flutter-shell = shellPrebuilt;
