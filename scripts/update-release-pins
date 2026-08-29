@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# Update derivable pins for one Denial release.
+# Dart input changes are deliberately left for a human because the matching
+# nixpkgs revision cannot be inferred from a Dart source revision.
+set -euo pipefail
+
+release_tag="${1:?usage: scripts/update-release-pins vX.Y.Z}"
+[[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "invalid release tag: $release_tag" >&2
+  exit 2
+}
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+[[ -z "$(git status --porcelain)" ]] || {
+  echo "working tree must be clean before updating release pins" >&2
+  exit 2
+}
+for command in curl jq nix python3 sed tr; do
+  command -v "$command" >/dev/null || {
+    echo "missing required command: $command" >&2
+    exit 2
+  }
+done
+
+version="${release_tag#v}"
+release_raw="https://raw.githubusercontent.com/denialwm/denial/${release_tag}"
+release_base="https://github.com/denialwm/denial/releases/download/${release_tag}"
+source_lock="$(curl -fsSL "$release_raw/prebuilt/flutter-engine/SOURCE_LOCK.json")"
+flutter_revision="$(jq -er '.flutter.revision' <<<"$source_lock")"
+flutter_raw="https://raw.githubusercontent.com/denialwm/flutter/${flutter_revision}"
+new_dart_revision="$(curl -fsSL "$flutter_raw/DEPS" \
+  | sed -nE "s/^[[:space:]]*'dart_revision':[[:space:]]*'([0-9a-f]{40})'.*/\1/p" \
+  | sed -n '1p')"
+[[ "$new_dart_revision" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "could not read dart revision from Flutter DEPS" >&2
+  exit 2
+}
+
+dart_version_file="$(curl -fsSL "https://raw.githubusercontent.com/dart-lang/sdk/${new_dart_revision}/tools/VERSION")"
+new_dart_version="$(sed -nE 's/^MAJOR ([0-9]+)$/\1/p' <<<"$dart_version_file").$(sed -nE 's/^MINOR ([0-9]+)$/\1/p' <<<"$dart_version_file").$(sed -nE 's/^PATCH ([0-9]+)$/\1/p' <<<"$dart_version_file")"
+current_dart_version="$(nix eval --raw .#packages.x86_64-linux.denial-flutter-engine-source.passthru.dart.version --no-write-lock-file)"
+current_dart_revision="$(jq -er '."engine/src/flutter/third_party/dart".args.rev' pkgs/denial-flutter-engine/gclient-deps.json)"
+if [[ "$new_dart_version" != "$current_dart_version" || "$new_dart_revision" != "$current_dart_revision" ]]; then
+  cat >&2 <<EOF
+Dart input changed: current ${current_dart_version} (${current_dart_revision}), release ${new_dart_version} (${new_dart_revision}).
+Update nixpkgs-dart and flake.lock manually, then rerun this script.
+EOF
+  exit 3
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+export HOME="$work/home"
+export XDG_CACHE_HOME="$work/cache"
+export JOBLIB_TEMP_FOLDER="$work/joblib"
+mkdir -p "$HOME" "$XDG_CACHE_HOME" "$JOBLIB_TEMP_FOLDER"
+
+dart_path="$(nix build .#denial-flutter-engine-source.passthru.dart \
+  --no-link --no-write-lock-file --print-out-paths)"
+source_hash="$(nix flake prefetch "github:denialwm/denial/${release_tag}" --json | jq -er '.hash')"
+flutter_source="$(nix flake prefetch "github:denialwm/flutter/${flutter_revision}" --json | jq -er '.storePath')"
+
+# Resolve flutter_tools from its fixed source pubspec with the locked Dart SDK.
+# No Flutter binary, UI-development package, or prebuilt pub cache is used.
+cp -a "$flutter_source/packages/flutter_tools" "$work/flutter_tools"
+chmod -R u+w "$work/flutter_tools"
+(
+  cd "$work/flutter_tools"
+  HOME="$work/home" PUB_CACHE="$work/pub-cache" "$dart_path/bin/dart" pub get
+)
+nix run nixpkgs#yq-go -- -o=json '... comments=""' \
+  "$work/flutter_tools/pubspec.lock" \
+  > pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json
+
+# This lock is committed beside the source pubspec in the exact release tag.
+curl -fsSL "$release_raw/dart_shell/pubspec.lock" \
+  | nix run nixpkgs#yq-go -- -o=json '... comments=""' \
+  > pkgs/denial-flutter-shell/pubspec.lock.json
+curl -fsSL "$release_raw/compositor/Cargo.lock" > pkgs/denial/Cargo.lock
+
+gclient2nix_linux="$(nix build .#gclient2nix-linux --no-link --no-write-lock-file --print-out-paths)"
+[[ -x "$gclient2nix_linux/bin/gclient2nix" ]] || {
+  echo "gclient2nix-linux package is missing its executable" >&2
+  exit 2
+}
+PATH="$gclient2nix_linux/bin:$PATH" gclient2nix generate \
+  "https://github.com/denialwm/flutter.git@${flutter_revision}" --root . \
+  > pkgs/denial-flutter-engine/gclient-deps.json
+
+material_fonts_version="$(curl -fsSL "$flutter_raw/bin/internal/material_fonts.version" | tr -d '\r\n')"
+gradle_wrapper_version="$(curl -fsSL "$flutter_raw/bin/internal/gradle_wrapper.version" | tr -d '\r\n')"
+prefetch_hash() {
+  nix store prefetch-file --json --hash-type sha256 "$1" | jq -er '.hash'
+}
+material_fonts_hash="$(prefetch_hash "https://storage.googleapis.com/${material_fonts_version}")"
+gradle_wrapper_hash="$(prefetch_hash "https://storage.googleapis.com/${gradle_wrapper_version}")"
+denial_hash="$(prefetch_hash "${release_base}/denial-${version}-1-x86_64.pkg.tar.zst")"
+engine_hash="$(prefetch_hash "${release_base}/denial-flutter-engine-1.${version}-1-x86_64.pkg.tar.zst")"
+ui_development_hash="$(prefetch_hash "${release_base}/denial-ui-development-${version}-1-x86_64.pkg.tar.zst")"
+
+python3 - "$version" "$source_hash" "$denial_hash" "$engine_hash" "$ui_development_hash" \
+  "$material_fonts_version" "$gradle_wrapper_version" "$material_fonts_hash" "$gradle_wrapper_hash" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+(version, source_hash, denial_hash, engine_hash, ui_development_hash,
+ material_fonts_version, gradle_wrapper_version, material_fonts_hash,
+ gradle_wrapper_hash) = sys.argv[1:]
+
+
+def replace_once(path, pattern, replacement):
+    file = Path(path)
+    text, count = re.subn(pattern, replacement, file.read_text(), count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"expected one match in {path}")
+    file.write_text(text)
+
+Path("pkgs/version.nix").write_text(f'"{version}"\n')
+for path in ("pkgs/denial/package.nix", "pkgs/denial-flutter-shell/source.nix"):
+    replace_once(path, r'hash = "sha256-[^"]+";', f'hash = "{source_hash}";')
+
+hashes = Path("pkgs/prebuilt-hashes.nix")
+text = hashes.read_text()
+for name, value in (("denial", denial_hash), ("engine", engine_hash), ("uiDevelopment", ui_development_hash)):
+    text, count = re.subn(rf'({name} = \{{.*?hash = )"[^"]+";', rf'\1"{value}";', text, count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"expected one {name} hash")
+hashes.write_text(text)
+
+revisions = Path("pkgs/denial-flutter-engine/revisions.nix")
+text = revisions.read_text()
+for name, value in (("materialFontsVersion", material_fonts_version), ("gradleWrapperVersion", gradle_wrapper_version)):
+    text, count = re.subn(rf'({name} = )"[^"]+";', rf'\1"{value}";', text, count=1)
+    if count != 1:
+        raise SystemExit(f"expected one {name} field")
+revisions.write_text(text)
+
+flake = Path("flake.nix")
+text = flake.read_text()
+for binding, value in (("materialFonts", material_fonts_hash), ("gradleWrapper", gradle_wrapper_hash)):
+    text, count = re.subn(rf'({binding} = final\.fetchurl \{{.*?hash = )"sha256-[^"]+";', rf'\1"{value}";', text, count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"expected one {binding} hash")
+flake.write_text(text)
+PY
+
+echo "Updated ${release_tag}; Dart input unchanged at ${current_dart_version} (${current_dart_revision})." >&2
