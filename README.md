@@ -3,6 +3,8 @@
 Nix packaging for [Denial](https://github.com/denialwm/denial), a Flutter-native
 Wayland compositor, written in the style of the niri package in nixpkgs.
 
+Maintainer Note: Due to limited personal maintenance bandwidth, I may not be able to keep up with upstream updates or provide up-to-date binary caches in a timely manner. Contributions and co-maintainers are highly welcome.
+
 ## What is built from source, what is not
 
 | Component | Package | Default x86-64 mode | Source mode |
