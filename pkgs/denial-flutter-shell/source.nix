@@ -16,7 +16,10 @@
 
 let
   version = import ../version.nix;
-  arch = if stdenv.hostPlatform.isx86_64 then "x64" else "arm64";
+  # Shared with flutter-tools and the engine. Both spellings are used below:
+  # `platform` for the Flutter cache/artifact layout, `cpu` for the Dart build
+  # output tree.
+  flutterArch = import ../flutter-arch.nix { system = stdenv.hostPlatform.system; };
 in
 buildDartApplication.override { inherit dart; } (finalAttrs: {
   pname = "denial-flutter-shell-source";
@@ -86,26 +89,26 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
       "$FLUTTER_ROOT/bin/cache/pkg/sky_engine"
     ln -s "${denial-flutter-engine-source.dev}/flutter/lib/gpu" \
       "$FLUTTER_ROOT/bin/cache/pkg/flutter_gpu"
-    mkdir -p "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}"
+    mkdir -p "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}"
     mkdir -p "$FLUTTER_ROOT/bin/cache/artifacts/engine/common"
-    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/font-subset" \
-      "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}/font-subset"
-    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/gen/const_finder.dart.snapshot" \
-      "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}/const_finder.dart.snapshot"
-    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/libflutter_linux_gtk.so" \
-      "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}/libflutter_linux_gtk.so"
-    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/icudtl.dat" \
-      "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}/icudtl.dat"
-    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/flutter_patched_sdk" \
+    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/font-subset" \
+      "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}/font-subset"
+    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/gen/const_finder.dart.snapshot" \
+      "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}/const_finder.dart.snapshot"
+    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/libflutter_linux_gtk.so" \
+      "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}/libflutter_linux_gtk.so"
+    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/icudtl.dat" \
+      "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}/icudtl.dat"
+    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/flutter_patched_sdk" \
       "$FLUTTER_ROOT/bin/cache/artifacts/engine/common/flutter_patched_sdk"
-    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/gen/frontend_server_aot.dart.snapshot" \
-      "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}/frontend_server_aot.dart.snapshot"
+    ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/gen/frontend_server_aot.dart.snapshot" \
+      "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}/frontend_server_aot.dart.snapshot"
     for mode in debug profile release; do
-      mkdir -p "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}-''${mode}"
-      ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/libflutter_linux_gtk.so" \
-        "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}-''${mode}/libflutter_linux_gtk.so"
-      ln -s "${denial-flutter-engine-source.dev}/engine-build/out/denial_host_release/flutter_linux" \
-        "$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-${arch}-''${mode}/flutter_linux"
+      mkdir -p "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}-''${mode}"
+      ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/libflutter_linux_gtk.so" \
+        "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}-''${mode}/libflutter_linux_gtk.so"
+      ln -s "${denial-flutter-engine-source.dev}/engine-build/out/${denial-flutter-engine-source.localEngine}/flutter_linux" \
+        "$FLUTTER_ROOT/bin/cache/artifacts/engine/${flutterArch.platform}-''${mode}/flutter_linux"
     done
     printf '%s\n' "$engine_revision" > "$FLUTTER_ROOT/bin/cache/font-subset.stamp"
     printf '%s\n' "$engine_revision" > "$FLUTTER_ROOT/bin/cache/linux-sdk.stamp"
@@ -126,12 +129,12 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
       --suppress-analytics \
       --output="$TMPDIR/bundle" \
       --local-engine-src-path="${denial-flutter-engine-source.dev}/engine-build" \
-      --local-engine=denial_host_release \
-      --local-engine-host=denial_host_release \
-      -dTargetPlatform=linux-${arch} \
+      --local-engine=${denial-flutter-engine-source.localEngine} \
+      --local-engine-host=${denial-flutter-engine-source.localEngine} \
+      -dTargetPlatform=${flutterArch.platform} \
       -dBuildMode=release \
       -dTreeShakeIcons=true \
-      release_bundle_linux-${arch}_assets
+      release_bundle_${flutterArch.platform}_assets
     runHook postBuild
   '';
 

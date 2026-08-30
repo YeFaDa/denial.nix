@@ -33,8 +33,16 @@
   denial-flutter-shell-prebuilt,
   denial-flutter-engine-source,
   denial-flutter-shell-source,
-  denial-settings-prebuilt ? null,
-  denial-settings-source ? null,
+  denial-settings-prebuilt,
+  denial-settings-source,
+
+  # Use the -source variants of the Flutter engine, shell and settings bundle
+  # instead of the prebuilt release artifacts.
+  #
+  # This deliberately stays false even on platforms upstream publishes no
+  # prebuilt artifacts for. See pkgs/prebuilt-hashes.nix: on such a platform
+  # the prebuilt consumers throw with a message pointing here, so the choice
+  # stays with whoever builds the package rather than being made for them.
   useSource ? false,
 }:
 
@@ -187,8 +195,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$bundle/lib/libflutter_engine.so"
     ln -s "${lib.getLib denial-flutter-engine}/lib/denial/flutter/data/icudtl.dat" \
       "$bundle/data/icudtl.dat"
-  '' + lib.optionalString (denialSettings != null) ''
-    mkdir -p "$out/share/applications"
+
+    # The settings bundle is always assembled now that both parameters are
+    # mandatory; the `-e` check below still matters because only some builds
+    # ship the .desktop file.
+    mkdir -p "$out/bin" "$out/share/applications"
     ln -s "${denialSettings}/bin/denial-settings" \
       "$out/bin/denial-settings"
     ln -s "${denialSettings}/lib/denial/settings" \
@@ -197,7 +208,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
       ln -s "${denialSettings}/share/applications/dev.denial.Settings.desktop" \
         "$out/share/applications/dev.denial.Settings.desktop"
     fi
-  '' + ''
+
     install -Dm555 packaging/arch/denial-session "$out/bin/denial-session"
     wrapProgram "$out/bin/denial-session" \
       --prefix PATH : "${lib.makeBinPath [
@@ -224,7 +235,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$out/share/xdg-desktop-portal-wlr/Denial"
     install -Dm644 packaging/arch/outputs.conf packaging/arch/session.conf \
       -t "$out/share/denial"
-
     installManPage docs/man/deniald.1 docs/man/denialctl.1 \
       docs/man/denial-session.1 docs/man/denial-portal.1
 
@@ -237,6 +247,12 @@ rustPlatform.buildRustPackage (finalAttrs: {
   passthru = {
     providedSessions = [ "denial" ];
     inherit denial-flutter-engine denial-flutter-shell;
+    # Read by the NixOS module to pick the matching UI development toolchain.
+    # Exposed here rather than inferred from the name or from `meta` so that an
+    # overridden or renamed package still reports where its Flutter parts came
+    # from. Only these three components follow `useSource`; the Rust side is
+    # built from source either way.
+    flutterFromSource = useSource;
   };
 
   meta = {
@@ -246,7 +262,12 @@ rustPlatform.buildRustPackage (finalAttrs: {
     license = with lib.licenses; [ gpl3Plus cc-by-sa-40 ofl ];
     mainProgram = "deniald";
     platforms = [ "x86_64-linux" "aarch64-linux" ];
-    sourceProvenance = with lib.sourceTypes; if useSource then [ fromSource ] else [ binaryNativeCode ];
+    # Always partly from source: deniald and denialctl are built by cargo
+    # here regardless of `useSource`, which only selects where the bundled
+    # Flutter engine, shell and settings bundle come from. Marking this
+    # binary-only would hide that the compositor itself is auditable.
+    sourceProvenance = with lib.sourceTypes;
+      [ fromSource ] ++ lib.optional (!useSource) binaryNativeCode;
     hydraPlatforms = [ ];
   };
 })

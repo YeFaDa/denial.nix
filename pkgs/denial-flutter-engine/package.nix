@@ -22,9 +22,13 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-engine";
   version = import ../version.nix;
 
-  src = fetchurl {
-    inherit (prebuilt.engine) url hash;
-  };
+  # Looked up per platform rather than selected with an `if`: on a platform
+  # upstream publishes no engine for, this throws at evaluation time instead of
+  # fetching an x86_64 archive into an aarch64 store path.
+  src = fetchurl (
+    prebuilt.${stdenv.hostPlatform.system}.engine
+      or (throw "denial-flutter-engine: upstream publishes no prebuilt engine for ${stdenv.hostPlatform.system}; set useSource = true to build from source")
+  );
 
   nativeBuildInputs = [
     patchelf
@@ -46,7 +50,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildPhase = ''
     runHook preBuild
-    patchelf --set-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
+    patchelf --add-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
       usr/lib/denial/flutter/lib/libflutter_engine.so
     runHook postBuild
   '';

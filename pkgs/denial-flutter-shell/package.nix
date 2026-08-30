@@ -17,9 +17,14 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-shell";
   version = import ../version.nix;
 
-  src = fetchurl {
-    inherit (prebuilt.denial) url hash;
-  };
+  # Upstream ships the shell inside the main compositor archive, hence the
+  # `denial` entry. Looked up per platform rather than selected with an `if`:
+  # on a platform upstream publishes nothing for, this throws at evaluation
+  # time instead of fetching an x86_64 archive into an aarch64 store path.
+  src = fetchurl (
+    prebuilt.${stdenv.hostPlatform.system}.denial
+      or (throw "denial-flutter-shell: upstream publishes no prebuilt shell for ${stdenv.hostPlatform.system}; set useSource = true to build from source")
+  );
 
   nativeBuildInputs = [ zstd ];
 
