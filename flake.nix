@@ -71,6 +71,18 @@
           # doing the build. DEPS spells `host_cpu` the same way GN does, so
           # this reuses pkgs/flutter-arch.nix rather than carrying a second
           # table that would have to be kept in step with it.
+          # Also drop gclient2nix's joblib disk cache. It has no concurrency
+          # protection: writes use open(..., "wb") (truncate-then-write), so a
+          # worker reading mid-write gets a truncated func_code.py, which
+          # extract_first_line() reports as first_line=-1. That looks like the
+          # function changed, so joblib warns and calls clear() -- which
+          # deletes the whole cache directory under the other workers, and the
+          # rewrite of func_code.py then fails with FileNotFoundError. With
+          # Parallel(n_jobs=20) this is not a rare race, it is the normal case.
+          #
+          # The cache is worthless here anyway: every run starts from a fresh
+          # mktemp -d, so it never survives to be reused.
+
           gclientHostCpu = (import ./pkgs/flutter-arch.nix {
             system = prev.stdenv.hostPlatform.system;
           }).cpu;
@@ -81,7 +93,8 @@
             cp ${final.gclient2nix}/bin/.gclient2nix-wrapped "$out/bin/gclient2nix"
             chmod u+w "$out/bin/gclient2nix"
             substituteInPlace "$out/bin/gclient2nix" \
-              --replace-fail 'else None,' 'else {"host_os": "linux", "host_cpu": "${gclientHostCpu}"},'
+              --replace-fail 'else None,' 'else {"host_os": "linux", "host_cpu": "${gclientHostCpu}"},' \
+              --replace-fail 'Memory(user_cache_dir("gclient2nix"), verbose=0)' 'Memory(None, verbose=0)'
             wrapProgram "$out/bin/gclient2nix" \
               --set PATH ${final.lib.makeBinPath [ final.nurl ]}
           '';
