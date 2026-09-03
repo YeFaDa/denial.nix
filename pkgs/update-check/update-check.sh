@@ -48,12 +48,12 @@ curl_get() {
 }
 
 latest_release_tag() {
-  # prerelease has to be filtered too: only drafts were excluded before, so an
-  # rc tag would have been reported as the version to upgrade to.
+  # Denial currently publishes release tags as prereleases, so exclude only
+  # drafts while accepting both stable and prerelease tags.
   curl -fsSL --retry 2 --connect-timeout 10 --max-time 30 \
     -H 'Accept: application/vnd.github+json' \
     'https://api.github.com/repos/denialwm/denial/releases?per_page=100' \
-    | jq -er 'map(select(.draft == false and .prerelease == false)) | .[0].tag_name'
+    | jq -er 'map(select(.draft == false)) | .[0].tag_name'
 }
 
 current="$current_version"
