@@ -47,7 +47,7 @@ let
   # resolved a tag to -- passing `rev` here instead of `tag` would change the
   # tarball URL and therefore the hash. Bump with `pkgs/version.nix`; see
   # `scripts/update-release-pins`.
-  sourceRev = "b71b11984e6fba60e5259b382718c75d00b1d08f";
+  sourceRev = "85b2303e2f09ae7b7b993641f90061a200f03d53";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-ui-development-source";
