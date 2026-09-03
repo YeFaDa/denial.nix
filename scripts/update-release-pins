@@ -163,9 +163,24 @@ replace_once("pkgs/flutter-engine-revision.nix",
              r'"[0-9a-f]{40}"', f'"{engine_revision}"')
 replace_once("pkgs/denial-ui-development/source.nix",
              r'(sourceRev = ")[0-9a-f]{40}(";)', rf'\g<1>{release_revision}\g<2>')
-# Three files carry the same tarball hash for the denial source tree. All three
-# have to move together: leaving one behind is a hash mismatch at build time.
+# Five files carry the same tarball hash for the denial source tree: they all
+# fetch denialwm/denial at the same tag, so the tarball -- and therefore the
+# hash -- is identical. All five have to move together: leaving one behind is
+# a hash mismatch at build time.
+#
+# Two of them are easy to miss. `pkgs/denial-ui/package.nix` is a separate
+# derivation from `pkgs/denial` (different cargo feature, `ui-development`
+# instead of `flutter`), and `pkgs/denial-ui-development/source.nix` is only
+# ever mentioned here for its `sourceRev` (updated just above), so its hash is
+# invisible unless you go looking for it. Both build from the same source tree,
+# so both pin the same tarball -- and `denial-ui-development-source` depends on
+# `denial-ui`, so a stale hash in either one breaks that build too.
+#
+# Safe to use `count=1` on each: in all five files the src tarball hash is the
+# only `hash = "sha256-..."` occurrence.
 for path in ("pkgs/denial/package.nix",
+             "pkgs/denial-ui/package.nix",
+             "pkgs/denial-ui-development/source.nix",
              "pkgs/denial-flutter-shell/source.nix",
              "pkgs/denial-settings/source.nix"):
     replace_once(path, r'hash = "sha256-[^"]+";', f'hash = "{source_hash}";')
