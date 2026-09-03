@@ -37,12 +37,21 @@ engine_revision="$(curl -fsSL "$flutter_raw/bin/internal/engine.version" | tr -d
   echo "could not read engine.version from the Flutter checkout" >&2
   exit 2
 }
-# The commit the release tag points at. `fetchFromGitHub` resolves the tag
-# itself and does not expose the result, but the ui-development workspace
-# marker records a source revision, so it has to be looked up here.
+ # The commit the release tag points at. `fetchFromGitHub` resolves the tag
+ # itself and does not expose the result, but the ui-development workspace
+ # marker records a source revision, so it has to be looked up here. Prefer
+ # the peeled commit for annotated tags, and fall back to the direct ref for
+ # lightweight tags.
 release_revision="$(git ls-remote https://github.com/denialwm/denial \
-  "refs/tags/${release_tag}" \
-  | sed -nE "s|^([0-9a-f]{40})[[:space:]]+refs/tags/${release_tag}\^\{\}\$|\1|p")"
+  "refs/tags/${release_tag}" "refs/tags/${release_tag}^{}" \
+  | sed -nE "s|^([0-9a-f]{40})[[:space:]]+refs/tags/${release_tag}\^\{\}\$|\1|p" \
+  | sed -n '1p')"
+if [[ -z "$release_revision" ]]; then
+  release_revision="$(git ls-remote https://github.com/denialwm/denial \
+    "refs/tags/${release_tag}" \
+    | sed -nE "s|^([0-9a-f]{40})[[:space:]]+refs/tags/${release_tag}\$|\1|p" \
+    | sed -n '1p')"
+fi
 [[ "$release_revision" =~ ^[0-9a-f]{40}$ ]] || {
   echo "could not resolve ${release_tag} to a commit" >&2
   exit 2
