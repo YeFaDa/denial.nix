@@ -6,13 +6,23 @@
   dart,
   flutter,
   git,
+  makeWrapper,
+  pkg-config,
   unzip,
   which,
+  glib,
+  gtk3,
+  libepoxy,
+  pango,
+  cairo,
+  atk,
+  gdk-pixbuf,
+  libglvnd,
   denial-flutter-engine-source,
   revisions,
   materialFonts,
   gradleWrapper,
-}: 
+}:
 
 let
   version = import ../version.nix;
@@ -22,9 +32,10 @@ let
   flutterArch = import ../flutter-arch.nix { system = stdenv.hostPlatform.system; };
 in
 buildDartApplication.override { inherit dart; } (finalAttrs: {
-  pname = "denial-flutter-shell-source";
+  pname = "denial-settings-source";
   inherit version;
   pubspecLock = lib.importJSON ./pubspec.lock.json;
+
   sdkSourceBuilders = {
     flutter = name:
       stdenv.mkDerivation {
@@ -47,16 +58,18 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
         passthru.packageRoot = ".";
       };
   };
+
   src = fetchFromGitHub {
     owner = "denialwm";
     repo = "denial";
     tag = "v${version}";
     hash = "sha256-qRbD0HvBJ87QWriQsx6GWdYVMnKj1Iae8QLRaxRL8T4=";
   };
-  sourceRoot = "source/dart_shell";
+  sourceRoot = "source/settings_app";
   strictDeps = true;
   dontStrip = true;
-  nativeBuildInputs = [ flutter git unzip which ];
+  nativeBuildInputs = [ flutter git makeWrapper pkg-config unzip which ];
+  buildInputs = [ glib gtk3 ];
 
   configurePhase = ''
     runHook preConfigure
@@ -118,6 +131,7 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
     printf '%s\n' "$engine_revision" > "$FLUTTER_ROOT/bin/internal/engine_stamp.version"
     runHook postConfigure
   '';
+
   buildPhase = ''
     runHook preBuild
     export FLUTTER_ROOT="$TMPDIR/flutter-sdk"
@@ -125,37 +139,52 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
       "$FLUTTER_ROOT/bin/cache/dart-sdk/bin/dart" \
         --disable-dart-dev "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot" "$@"
     }
-    flutter assemble \
-      --suppress-analytics \
-      --output="$TMPDIR/bundle" \
+    flutter pub get --offline
+    flutter build linux \
       --local-engine-src-path="${denial-flutter-engine-source.dev}/engine-build" \
       --local-engine=${denial-flutter-engine-source.localEngine} \
       --local-engine-host=${denial-flutter-engine-source.localEngine} \
-      -dTargetPlatform=${flutterArch.platform} \
-      -dBuildMode=release \
-      -dTreeShakeIcons=true \
-      release_bundle_${flutterArch.platform}_assets
+      --suppress-analytics \
+      --release \
+      --target=lib/main.dart \
+      --tree-shake-icons
     runHook postBuild
   '';
 
   installPhase = ''
     runHook preInstall
-    install -Dm555 "$TMPDIR/bundle/lib/libapp.so" \
-      "$out/lib/denial/flutter/lib/libapp.so"
-    mkdir -p "$out/lib/denial/flutter/data"
-    cp -a "$TMPDIR/bundle/flutter_assets" \
-      "$out/lib/denial/flutter/data/flutter_assets"
-    chmod -R u=rwX,go=rX "$out/lib/denial/flutter/data/flutter_assets"
-    install -Dm444 assets/fonts/OFL.txt \
+    bundle="build/linux/${flutterArch.cpu}/release/bundle"
+    test -x "$bundle/denial-settings"
+    mkdir -p "$out/lib/denial/settings"
+    cp -a "$bundle/." "$out/lib/denial/settings/"
+    chmod -R u=rwX,go=rX "$out/lib/denial/settings"
+    makeWrapper "$out/lib/denial/settings/denial-settings" \
+      "$out/bin/denial-settings" \
+      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
+        glib
+        gtk3
+        libepoxy
+        pango
+        cairo
+        atk
+        gdk-pixbuf
+        libglvnd
+      ]}"
+    install -Dm644 ../packaging/arch/dev.denial.Settings.desktop \
+      "$out/share/applications/dev.denial.Settings.desktop"
+    substituteInPlace "$out/share/applications/dev.denial.Settings.desktop" \
+      --replace-fail /usr/bin/denial-settings "$out/bin/denial-settings"
+    install -Dm444 ../dart_shell/assets/fonts/OFL.txt \
       "$out/share/licenses/${finalAttrs.pname}/OFL.txt"
     runHook postInstall
   '';
 
   meta = {
-    description = "Denial Dart shell built with the Denial Flutter fork";
+    description = "Denial Settings application built with the Denial Flutter fork";
     homepage = "https://github.com/denialwm/denial";
-    license = with lib.licenses; [ gpl3Plus cc-by-sa-40 ofl ];
+    license = with lib.licenses; [ gpl3Plus ofl ];
     platforms = [ "x86_64-linux" "aarch64-linux" ];
     sourceProvenance = [ lib.sourceTypes.fromSource ];
+    hydraPlatforms = [ ];
   };
 })

@@ -11,7 +11,10 @@
 }: 
 let
   gclientDeps = gclient2nix.importGclientDeps ./gclient-deps.json;
-  hostPlatform = if stdenv.hostPlatform.isx86_64 then "linux-x64" else "linux-arm64";
+
+  # Shared with the engine, shell and settings derivations. `platform` rather
+  # than `cpu`: flutter_tools wants the full Flutter platform name here.
+  flutterArch = import ../flutter-arch.nix { system = stdenv.hostPlatform.system; };
 in
 buildDartApplication.override { inherit dart; } (finalAttrs: {
   pname = "denial-flutter-tools";
@@ -19,15 +22,12 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
   src = gclientDeps.".".path;
   sourceRoot = "source/packages/flutter_tools";
   pubspecLock = lib.importJSON ./flutter-tools-pubspec.lock.json;
-  gitHashes = {
-    assets_for_android_views = "sha256-GN7nBxBwnlByp3E8uUDabWiuMUoYYHPtIveF+RiEpS8=";
-  };
   inherit sdkSourceBuilders;
   dartEntryPoints = {
     "flutter_tools.snapshot" = "bin/flutter_tools.dart";
   };
   dartOutputType = "jit-snapshot";
-  dartCompileFlags = [ "--define=NIX_FLUTTER_HOST_PLATFORM=${hostPlatform}" ];
+  dartCompileFlags = [ "--define=NIX_FLUTTER_HOST_PLATFORM=${flutterArch.platform}" ];
   nativeBuildInputs = [ git which ];
 
   preConfigure = ''

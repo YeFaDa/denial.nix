@@ -24,15 +24,98 @@
   zlib,
   dart,
   revisions,
+
+  # Which Flutter runtime mode to build: "release", "debug" or "profile".
+  #
+  # Upstream commits one `args.gn` per mode under
+  # `prebuilt/flutter-engine/linux-x64-<mode>/` and they differ in exactly two
+  # lines (`flutter_runtime_mode` and `dart_runtime_mode`), so one derivation
+  # parameterised on the mode covers all three instead of carrying a second
+  # copy of the build logic. The ninja target list differs more substantially
+  # and is picked from the table below.
+  #
+  # Left at "release" so the shell and settings packages keep resolving the
+  # store paths they have always resolved.
+  runtimeMode ? "release",
 }: 
 
 let
   version = import ../version.nix;
   llvmPackages = llvmPackages_21;
-  hostCpu =
-    if stdenv.hostPlatform.isx86_64 then "x64"
-    else if stdenv.hostPlatform.isAarch64 then "arm64"
-    else throw "unsupported host platform: ${stdenv.hostPlatform.system}";
+
+  # GN's output directory name. Upstream spells it the same way in
+  # `tools/denial-flutter-engine`; consumers resolve it through
+  # `passthru.localEngine` rather than hardcoding it.
+  target = "denial_host_${runtimeMode}";
+
+  # Upstream runs two commands over this engine tree and each asks for a
+  # different set of ninja targets: `build` compiles `libflutter_engine.so`
+  # in every mode (the compositor embeds the release one, and the UI
+  # development toolchain ships the debug and profile ones under
+  # `ui-development/{lib,profile}/`), while `prepare-development-sdk`
+  # compiles the tree a live UI workspace reads (a full Dart SDK, the
+  # Impeller compiler, const_finder, the Linux embedder headers, and the
+  # profile tree's AOT compiler and GTK engine).
+  #
+  # Both lists are folded into one per mode so a single build of a mode yields
+  # everything that mode is ever asked for. The release list is the historical
+  # one and must not change: it is what the shell and settings packages were
+  # built against.
+  ninjaTargets = {
+    release = [
+      "dart_sdk"
+      "flutter_patched_sdk/platform_strong.dill"
+      "libflutter_engine.so"
+      "gen_snapshot"
+      "libflutter_linux_gtk.so"
+      "flutter/shell/platform/linux:publish_headers_linux"
+      "flutter/tools/font_subset:font_subset"
+    ];
+    debug = [
+      "dart_sdk"
+      "flutter_patched_sdk/platform_strong.dill"
+      "libflutter_engine.so"
+      "flutter/shell/platform/linux:publish_headers_linux"
+      "flutter/tools/const_finder:const_finder"
+      "flutter/tools/font_subset:font_subset"
+      "impellerc"
+    ];
+    profile = [
+      "libflutter_engine.so"
+      "gen_snapshot"
+      "libflutter_linux_gtk.so"
+    ];
+  }."${runtimeMode}" or (throw "denial-flutter-engine-source: unknown runtimeMode '${runtimeMode}'");
+
+  # Mirrors the `[[ -x ... ]]` checks upstream runs after ninja. The release
+  # pair is the one that existed before; the others are what
+  # `prepare-development-sdk` verifies.
+  devAssertions = {
+    release = [
+      "gen_snapshot"
+      "libflutter_linux_gtk.so"
+      "flutter_linux"
+      "flutter_patched_sdk/platform_strong.dill"
+    ];
+    debug = [
+      "dart-sdk/bin/dart"
+      "flutter_patched_sdk/platform_strong.dill"
+      "flutter_linux/flutter_linux.h"
+      "gen/const_finder.dart.snapshot"
+      "font-subset"
+      "impellerc"
+      "gen/dart-pkg/sky_engine/lib/_embedder.yaml"
+    ];
+    profile = [
+      "gen_snapshot"
+      "libflutter_linux_gtk.so"
+    ];
+  }."${runtimeMode}" or (throw "denial-flutter-engine-source: unknown runtimeMode '${runtimeMode}'");
+
+  # Shared with flutter-tools, the shell and the settings app. This was
+  # previously called `hostCpu` and held only the CPU part, but every use site
+  # prefixed it with `linux-` again; take the full platform name directly.
+  flutterArch = import ../flutter-arch.nix { system = stdenv.hostPlatform.system; };
   devtoolsSharedDetails = (lib.importJSON ./flutter-tools-pubspec.lock.json).packages.devtools_shared;
   devtoolsShared = fetchurl {
     url = "${devtoolsSharedDetails.description.url}/api/archives/${devtoolsSharedDetails.description.name}-${devtoolsSharedDetails.version}.tar.gz";
@@ -43,7 +126,14 @@ let
   gclientDeps = gclient2nix.importGclientDeps ./gclient-deps.json;
 in
 stdenv.mkDerivation (finalAttrs: {
-  pname = "denial-flutter-engine-source";
+  # The release build keeps its historical name; a name change would change
+  # its store path and invalidate every cache entry built against it. The
+  # other modes carry the mode so `nix store ls`-style listings stay readable.
+  pname =
+    if runtimeMode == "release" then
+      "denial-flutter-engine-source"
+    else
+      "denial-flutter-engine-${runtimeMode}-source";
   inherit version gclientDeps;
   sourceRoot = "engine/src";
   outputs = [ "out" "dev" ];
@@ -79,11 +169,11 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   postUnpack = ''
-    mkdir -p engine/src/flutter/buildtools/linux-${hostCpu}/clang/bin
+    mkdir -p engine/src/flutter/buildtools/${flutterArch.platform}/clang/bin
     for tool in clang clang++ llvm-ar llvm-cov llvm-nm llvm-objcopy llvm-ranlib llvm-readelf llvm-size llvm-strip; do
       for root in ${llvmPackages.clang} ${llvmPackages.llvm} ${llvmPackages.lld}; do
         if [ -x "$root/bin/$tool" ]; then
-          ln -sf "$root/bin/$tool" "engine/src/flutter/buildtools/linux-${hostCpu}/clang/bin/$tool"
+          ln -sf "$root/bin/$tool" "engine/src/flutter/buildtools/${flutterArch.platform}/clang/bin/$tool"
           break
         fi
       done
@@ -116,8 +206,8 @@ PY
     ln -sf ${gn}/bin/gn third_party/gn/gn
     printf 'checkout_llvm = false\n' > third_party/dart/build/config/gclient_args.gni
     ln -sf ${dart} third_party/dart/tools/sdks/dart-sdk
-    mkdir -p prebuilts/linux-${hostCpu}
-    ln -sf ${dart} prebuilts/linux-${hostCpu}/dart-sdk
+    mkdir -p prebuilts/${flutterArch.platform}
+    ln -sf ${dart} prebuilts/${flutterArch.platform}/dart-sdk
 
     rm -f third_party/depot_tools/vpython3
     cat > third_party/depot_tools/vpython3 <<EOF
@@ -126,9 +216,25 @@ exec ${python3}/bin/python3 "\$@"
 EOF
     chmod 755 third_party/depot_tools/vpython3
 
-    if [ -f shell/platform/linux/fl_view_accessible.cc ]; then
-      sed -i '7,9c#include <atk/atk.h>' shell/platform/linux/fl_view_accessible.cc
-    fi
+    # Upstream wraps the ATK include in `extern "C"`. Because the wrapper is
+    # opened *before* the include, it drags the whole include closure into C
+    # linkage: atk.h -> atkversion.h -> glib.h -> gatomic.h -> glib-typeof.h,
+    # which pulls in <type_traits>. C++ forbids template declarations inside
+    # an `extern "C"` block, so the build dies with
+    # "error: template with C linkage". Dropping the wrapper keeps the symbols
+    # unmangled, which is what ATK wants anyway.
+    #
+    # Matched on content rather than line numbers: the previous
+    # `sed -i '7,9c...'` silently retargeted itself whenever upstream edited
+    # anything above this block. `--replace-fail` turns that into a build
+    # error instead.
+    #
+    # No `if [ -f ... ]` guard on purpose: if upstream moves or renames this
+    # file we want a hard failure, not a silently skipped patch.
+    substituteInPlace shell/platform/linux/fl_view_accessible.cc \
+      --replace-fail 'extern "C" {
+#include <atk/atk.h>
+}' '#include <atk/atk.h>'
     substituteInPlace tools/gn \
       --replace-fail "revision_args['engine_version'] = get_repository_version(engine_path)" \
         "revision_args['engine_version'] = '${revisions.flutter}'" \
@@ -155,59 +261,97 @@ EOF
     (cd flutter && ${dart}/bin/dart pub get --offline)
 
     python3 ./flutter/tools/gn \
-      --runtime-mode=release \
+      --runtime-mode=${runtimeMode} \
       --enable-fontconfig \
       --no-default-linux-sysroot \
       --out-dir="$buildRoot" \
-      --target-dir=denial_host_release \
+      --target-dir=${target} \
       --gn-args='pkg_config="${pkg-config}/bin/pkg-config"' \
       --gn-args='host_pkg_config="${pkg-config}/bin/pkg-config"' \
-      ${lib.optionalString stdenv.hostPlatform.isAarch64 "--target-os=linux --linux-cpu=arm64"}
+      # GN infers these from the host, which lands correctly on x86_64;
+      # aarch64 needs them spelled out. The `isAarch64` test stays a condition
+      # rather than a table lookup because this is a difference in build
+      # behaviour, not in naming -- but the value comes from the shared table,
+      # so no arch name is hardcoded outside pkgs/flutter-arch.nix.
+      ${lib.optionalString stdenv.hostPlatform.isAarch64 "--target-os=linux --linux-cpu=${flutterArch.cpu}"}
 
-    ${ninja}/bin/ninja -C "$buildRoot/out/denial_host_release" -j"''${NIX_BUILD_CORES:-1}" \
-      dart_sdk \
-      flutter_patched_sdk/platform_strong.dill \
-      libflutter_engine.so gen_snapshot libflutter_linux_gtk.so \
-      flutter/shell/platform/linux:publish_headers_linux \
-      flutter/tools/font_subset:font_subset
+    ${ninja}/bin/ninja -C "$buildRoot/out/${target}" -j"''${NIX_BUILD_CORES:-1}" \
+      ${lib.concatStringsSep " " ninjaTargets}
 
-    output="$buildRoot/out/denial_host_release"
+    output="$buildRoot/out/${target}"
+    # Every mode builds this: release embeds it into the compositor and the
+    # other two ship inside `denial-ui-development-source`. The mode-specific
+    # trees are checked in installPhase against the `devAssertions` table.
     test -f "$output/libflutter_engine.so"
-    test -x "$output/gen_snapshot"
     runHook postBuild
   '';
 
   installPhase = ''
     runHook preInstall
-    output="$TMPDIR/denial-flutter-engine-build/out/denial_host_release"
-    install -Dm555 "$output/libflutter_engine.so" \
-      "$out/lib/denial/flutter/lib/libflutter_engine.so"
-    install -Dm444 "$output/icudtl.dat" \
-      "$out/lib/denial/flutter/data/icudtl.dat"
-    chmod u+w "$out/lib/denial/flutter/lib/libflutter_engine.so"
-    patchelf --set-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
-      "$out/lib/denial/flutter/lib/libflutter_engine.so"
+    output="$TMPDIR/denial-flutter-engine-build/out/${target}"
+
+    # Only the release build produces a runtime library. The debug and profile
+    # trees exist for `denial-ui-development-source`, which reads them through
+    # `dev` and never links against them, so their `out` is left empty rather
+    # than carrying a library nothing would load.
+    ${lib.optionalString (runtimeMode == "release") ''
+      install -Dm555 "$output/libflutter_engine.so" \
+        "$out/lib/denial/flutter/lib/libflutter_engine.so"
+      install -Dm444 "$output/icudtl.dat" \
+        "$out/lib/denial/flutter/data/icudtl.dat"
+      chmod u+w "$out/lib/denial/flutter/lib/libflutter_engine.so"
+      # --add-rpath, not --set-rpath: this library is built here and already
+      # carries a RUNPATH from the GN/Ninja build. Overwriting it would drop
+      # those entries and only leave fontconfig behind.
+      patchelf --add-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
+        "$out/lib/denial/flutter/lib/libflutter_engine.so"
+    ''}
+
+    # Leaves `out` empty, which `nix build` accepts silently and which reads as
+    # a broken package to anyone who tries it. Say where the payload went.
+    ${lib.optionalString (runtimeMode != "release") ''
+      mkdir -p "$out/share/doc/${finalAttrs.pname}"
+      printf '%s\n' \
+        "The artifacts of this build live in the dev output, under" \
+        "engine-build/out/${target} -- including libflutter_engine.so." \
+        "" \
+        "The out output exists for the release build's runtime library," \
+        "which the compositor embeds. This mode's engine serves" \
+        "denial-ui-development-source, which reads it from dev, so out" \
+        "carries nothing to install." \
+        > "$out/share/doc/${finalAttrs.pname}/OUTPUTS.md"
+    ''}
 
     mkdir -p "$dev/engine-build/out"
-    cp -a "$output" "$dev/engine-build/out/denial_host_release"
-    test -d "$dev/engine-build/out/denial_host_release/flutter_linux" || (echo "missing flutter_linux in dev output" >&2; exit 1)
-    test -f "$dev/engine-build/out/denial_host_release/flutter_patched_sdk/platform_strong.dill" || (echo "missing platform_strong.dill" >&2; exit 1)
+    cp -a "$output" "$dev/engine-build/out/${target}"
+    # Driven by the `devAssertions` table rather than spelled out per mode, so
+    # adding a mode means adding one list entry instead of another block of
+    # `test` calls here.
+    for artifact in ${lib.concatStringsSep " " devAssertions}; do
+      test -e "$dev/engine-build/out/${target}/$artifact" \
+        || (echo "missing $artifact in ${runtimeMode} dev output" >&2; exit 1)
+    done
 
     mkdir -p "$dev/flutter/sky/packages" "$dev/flutter/lib"
     cp -a flutter/sky/packages/sky_engine "$dev/flutter/sky/packages/"
-    cp -a flutter/lib/gpu "$dev/flutter/lib/" 2>/dev/null || true
+    # `flutter_gpu`, the package backing `dart:ui`'s GPU API. No `|| true`:
+    # the directory is present in the locked revision (verified against
+    # `engine/src/flutter/lib/gpu/pubspec.yaml`), and if upstream moves or
+    # renames it we want the build to fail here rather than hand
+    # `denial-ui-development-source` a silently incomplete dev tree.
+    cp -a flutter/lib/gpu "$dev/flutter/lib/"
     install -Dm444 flutter/LICENSE "$dev/flutter/LICENSE"
     runHook postInstall
   '';
 
   passthru = {
-    inherit dart;
-    localEngine = "denial_host_release";
+    inherit dart runtimeMode;
+    localEngine = target;
     localEngineSrcPath = "${placeholder "dev"}/engine-build";
   };
 
   meta = {
-    description = "Denial Flutter engine built from its locked Flutter and Skia sources";
+    description = "Denial Flutter engine (${runtimeMode}) built from its locked Flutter and Skia sources";
     homepage = "https://github.com/denialwm/flutter";
     license = lib.licenses.bsd3;
     platforms = [ "x86_64-linux" "aarch64-linux" ];

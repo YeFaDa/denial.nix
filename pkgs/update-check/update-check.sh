@@ -48,10 +48,12 @@ curl_get() {
 }
 
 latest_release_tag() {
+  # prerelease has to be filtered too: only drafts were excluded before, so an
+  # rc tag would have been reported as the version to upgrade to.
   curl -fsSL --retry 2 --connect-timeout 10 --max-time 30 \
     -H 'Accept: application/vnd.github+json' \
     'https://api.github.com/repos/denialwm/denial/releases?per_page=100' \
-    | jq -er 'map(select(.draft == false)) | .[0].tag_name'
+    | jq -er 'map(select(.draft == false and .prerelease == false)) | .[0].tag_name'
 }
 
 current="$current_version"
@@ -173,8 +175,8 @@ if [[ "$json" == 1 ]]; then
       source: {pinned: true, source_lock: {url: $source_lock_url, sha256: $source_lock_hash},
         current: {flutter_revision: $current_flutter, dart_revision: $current_dart, dart_version: $current_dart_version, skia_revision: $current_skia, material_fonts_version: $current_material, gradle_wrapper_version: $current_gradle},
         release: {flutter_revision: $new_flutter, dart_revision: $new_dart, dart_version: $new_dart_version, skia_revision: $new_skia, material_fonts_version: $new_material, gradle_wrapper_version: $new_gradle}},
-      lock_files: {engine_tools: "pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json", shell: "pkgs/denial-flutter-shell/pubspec.lock.json"},
-      actions: {cargo_lock: ("https://raw.githubusercontent.com/denialwm/denial/" + $latest + "/compositor/Cargo.lock"), gclient_deps: "regenerate from SOURCE_LOCK.json with gclient2nix", flutter_tools_lock: "regenerate from fixed Flutter source packages/flutter_tools/pubspec.yaml", shell_lock: "copy release source dart_shell/pubspec.lock", dart_input: "manual: update nixpkgs-dart and flake.lock only when Dart changes"}}'
+      lock_files: {engine_tools: "pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json", shell: "pkgs/denial-flutter-shell/pubspec.lock.json", settings: "pkgs/denial-settings/pubspec.lock.json"},
+      actions: {cargo_lock: ("https://raw.githubusercontent.com/denialwm/denial/" + $latest + "/compositor/Cargo.lock"), gclient_deps: "regenerate from SOURCE_LOCK.json with gclient2nix", flutter_tools_lock: "regenerate from fixed Flutter source packages/flutter_tools/pubspec.yaml", shell_lock: "copy release source dart_shell/pubspec.lock", settings_lock: "copy release source settings_app/pubspec.lock", dart_input: "manual: update nixpkgs-dart and flake.lock only when Dart changes"}}'
   exit 0
 fi
 
@@ -210,6 +212,7 @@ Prebuilt:
 Source:
   SOURCE_LOCK.json: ${source_lock_url}
   denial-flutter-shell/pubspec.lock.json: use the release source dart_shell/pubspec.lock
+  denial-settings/pubspec.lock.json: use the release source settings_app/pubspec.lock
   Dart input: if version or revision changed, update nixpkgs-dart and flake.lock manually
 
 Verify:
