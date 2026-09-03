@@ -195,6 +195,12 @@ def entry(name, filename, hash_value):
     }};
 '''
 
+entries = "".join([
+    entry("denial", f"denial-${{version}}-1-x86_64.pkg.tar.zst", denial_hash),
+    entry("engine", f"denial-flutter-engine-1.${{version}}-1-x86_64.pkg.tar.zst", engine_hash),
+    entry("uiDevelopment", f"denial-ui-development-${{version}}-1-x86_64.pkg.tar.zst", ui_development_hash),
+])
+
 Path("pkgs/prebuilt-hashes.nix").write_text(f'''# Prebuilt release artifacts, keyed by host platform.
 #
 # Upstream currently publishes x86_64 payloads only. Rather than picking a
@@ -217,9 +223,7 @@ let
 in
 {{
   "x86_64-linux" = {{
-{entry("denial", f"denial-${{version}}-1-x86_64.pkg.tar.zst", denial_hash)}"""
-    f"""{entry("engine", f"denial-flutter-engine-1.${{version}}-1-x86_64.pkg.tar.zst", engine_hash)}"""
-    f"""{entry("uiDevelopment", f"denial-ui-development-${{version}}-1-x86_64.pkg.tar.zst", ui_development_hash)}  }};
+{entries}  }};
 }}
 ''')
 
