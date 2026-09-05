@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+# Update derivable pins for one Denial release.
+# Dart input changes are deliberately left for a human because the matching
+# nixpkgs revision cannot be inferred from a Dart source revision.
+set -euo pipefail
+
+release_tag="${1:?usage: scripts/update-release-pins vX.Y.Z}"
+[[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "invalid release tag: $release_tag" >&2
+  exit 2
+}
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+[[ -z "$(git status --porcelain)" ]] || {
+  echo "working tree must be clean before updating release pins" >&2
+  exit 2
+}
+for command in curl jq nix python3 sed tr; do
+  command -v "$command" >/dev/null || {
+    echo "missing required command: $command" >&2
+    exit 2
+  }
+done
+
+version="${release_tag#v}"
+release_raw="https://raw.githubusercontent.com/denialwm/denial/${release_tag}"
+release_base="https://github.com/denialwm/denial/releases/download/${release_tag}"
+source_lock="$(curl -fsSL "$release_raw/prebuilt/flutter-engine/SOURCE_LOCK.json")"
+flutter_revision="$(jq -er '.flutter.revision' <<<"$source_lock")"
+flutter_raw="https://raw.githubusercontent.com/denialwm/flutter/${flutter_revision}"
+# Not the same thing as `${flutter_revision}`: this is the revision whose
+# published Linux artifacts Denial falls back to for the few files its own
+# engine build has no target for. See pkgs/flutter-engine-revision.nix.
+engine_revision="$(curl -fsSL "$flutter_raw/bin/internal/engine.version" | tr -d '\r\n')"
+[[ "$engine_revision" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "could not read engine.version from the Flutter checkout" >&2
+  exit 2
+}
+ # The commit the release tag points at. `fetchFromGitHub` resolves the tag
+ # itself and does not expose the result, but the ui-development workspace
+ # marker records a source revision, so it has to be looked up here. Prefer
+ # the peeled commit for annotated tags, and fall back to the direct ref for
+ # lightweight tags.
+release_revision="$(git ls-remote https://github.com/denialwm/denial \
+  "refs/tags/${release_tag}" "refs/tags/${release_tag}^{}" \
+  | sed -nE "s|^([0-9a-f]{40})[[:space:]]+refs/tags/${release_tag}\^\{\}\$|\1|p" \
+  | sed -n '1p')"
+if [[ -z "$release_revision" ]]; then
+  release_revision="$(git ls-remote https://github.com/denialwm/denial \
+    "refs/tags/${release_tag}" \
+    | sed -nE "s|^([0-9a-f]{40})[[:space:]]+refs/tags/${release_tag}\$|\1|p" \
+    | sed -n '1p')"
+fi
+[[ "$release_revision" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "could not resolve ${release_tag} to a commit" >&2
+  exit 2
+}
+new_dart_revision="$(curl -fsSL "$flutter_raw/DEPS" \
+  | sed -nE "s/^[[:space:]]*'dart_revision':[[:space:]]*'([0-9a-f]{40})'.*/\1/p" \
+  | sed -n '1p')"
+[[ "$new_dart_revision" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "could not read dart revision from Flutter DEPS" >&2
+  exit 2
+}
+
+dart_version_file="$(curl -fsSL "https://raw.githubusercontent.com/dart-lang/sdk/${new_dart_revision}/tools/VERSION")"
+new_dart_version="$(sed -nE 's/^MAJOR ([0-9]+)$/\1/p' <<<"$dart_version_file").$(sed -nE 's/^MINOR ([0-9]+)$/\1/p' <<<"$dart_version_file").$(sed -nE 's/^PATCH ([0-9]+)$/\1/p' <<<"$dart_version_file")"
+current_dart_version="$(nix eval --raw .#packages.x86_64-linux.denial-flutter-engine-source.passthru.dart.version --no-write-lock-file)"
+current_dart_revision="$(jq -er '."engine/src/flutter/third_party/dart".args.rev' pkgs/denial-flutter-engine/gclient-deps.json)"
+if [[ "$new_dart_version" != "$current_dart_version" || "$new_dart_revision" != "$current_dart_revision" ]]; then
+  cat >&2 <<EOF
+Dart input changed: current ${current_dart_version} (${current_dart_revision}), release ${new_dart_version} (${new_dart_revision}).
+Update nixpkgs-dart and flake.lock manually, then rerun this script.
+EOF
+  exit 3
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+export HOME="$work/home"
+export XDG_CACHE_HOME="$work/cache"
+export JOBLIB_TEMP_FOLDER="$work/joblib"
+mkdir -p "$HOME" "$XDG_CACHE_HOME" "$JOBLIB_TEMP_FOLDER"
+
+dart_path="$(nix build .#denial-flutter-engine-source.passthru.dart \
+  --no-link --no-write-lock-file --print-out-paths)"
+source_hash="$(nix flake prefetch "github:denialwm/denial/${release_tag}" --json | jq -er '.hash')"
+flutter_source="$(nix flake prefetch "github:denialwm/flutter/${flutter_revision}" --json | jq -er '.storePath')"
+
+# Resolve flutter_tools from its fixed source pubspec with the locked Dart SDK.
+# No Flutter binary, UI-development package, or prebuilt pub cache is used.
+cp -a "$flutter_source/packages/flutter_tools" "$work/flutter_tools"
+chmod -R u+w "$work/flutter_tools"
+(
+  cd "$work/flutter_tools"
+  HOME="$work/home" PUB_CACHE="$work/pub-cache" "$dart_path/bin/dart" pub get
+)
+nix run nixpkgs#yq-go -- -o=json '... comments=""' \
+  "$work/flutter_tools/pubspec.lock" \
+  > pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json
+
+# This lock is committed beside the source pubspec in the exact release tag.
+curl -fsSL "$release_raw/dart_shell/pubspec.lock" \
+  | nix run nixpkgs#yq-go -- -o=json '... comments=""' \
+  > pkgs/denial-flutter-shell/pubspec.lock.json
+# The settings app has its own lock. It depends on `denial_dart_shell` through a
+# path dependency on ../dart_shell, so it has to move in step with the shell.
+curl -fsSL "$release_raw/settings_app/pubspec.lock" \
+  | nix run nixpkgs#yq-go -- -o=json '... comments=""' \
+  > pkgs/denial-settings/pubspec.lock.json
+curl -fsSL "$release_raw/compositor/Cargo.lock" > pkgs/denial/Cargo.lock
+
+gclient2nix_linux="$(nix build .#gclient2nix-linux --no-link --no-write-lock-file --print-out-paths)"
+[[ -x "$gclient2nix_linux/bin/gclient2nix" ]] || {
+  echo "gclient2nix-linux package is missing its executable" >&2
+  exit 2
+}
+PATH="$gclient2nix_linux/bin:$PATH" gclient2nix generate \
+  "https://github.com/denialwm/flutter.git@${flutter_revision}" --root . \
+  > pkgs/denial-flutter-engine/gclient-deps.json
+
+material_fonts_version="$(curl -fsSL "$flutter_raw/bin/internal/material_fonts.version" | tr -d '\r\n')"
+gradle_wrapper_version="$(curl -fsSL "$flutter_raw/bin/internal/gradle_wrapper.version" | tr -d '\r\n')"
+prefetch_hash() {
+  nix store prefetch-file --json --hash-type sha256 "$1" | jq -er '.hash'
+}
+material_fonts_hash="$(prefetch_hash "https://storage.googleapis.com/${material_fonts_version}")"
+gradle_wrapper_hash="$(prefetch_hash "https://storage.googleapis.com/${gradle_wrapper_version}")"
+denial_hash="$(prefetch_hash "${release_base}/denial-${version}-1-x86_64.pkg.tar.zst")"
+engine_hash="$(prefetch_hash "${release_base}/denial-flutter-engine-1.${version}-1-x86_64.pkg.tar.zst")"
+ui_development_hash="$(prefetch_hash "${release_base}/denial-ui-development-${version}-1-x86_64.pkg.tar.zst")"
+# Both platforms, because pkgs/flutter-engine-artifacts.nix pins one hash per
+# platform and the source-built ui-development package works on both.
+artifacts_base="https://storage.googleapis.com/flutter_infra_release/flutter/${engine_revision}"
+x64_artifacts_hash="$(prefetch_hash "${artifacts_base}/linux-x64/artifacts.zip")"
+arm64_artifacts_hash="$(prefetch_hash "${artifacts_base}/linux-arm64/artifacts.zip")"
+
+python3 - "$version" "$source_hash" "$denial_hash" "$engine_hash" "$ui_development_hash" \
+  "$material_fonts_version" "$gradle_wrapper_version" "$material_fonts_hash" "$gradle_wrapper_hash" \
+  "$engine_revision" "$release_revision" "$x64_artifacts_hash" "$arm64_artifacts_hash" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+(version, source_hash, denial_hash, engine_hash, ui_development_hash,
+ material_fonts_version, gradle_wrapper_version, material_fonts_hash,
+ gradle_wrapper_hash, engine_revision, release_revision,
+ x64_artifacts_hash, arm64_artifacts_hash) = sys.argv[1:]
+
+
+def replace_once(path, pattern, replacement):
+    file = Path(path)
+    text, count = re.subn(pattern, replacement, file.read_text(), count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"expected one match in {path}")
+    file.write_text(text)
+
+Path("pkgs/version.nix").write_text(f'"{version}"\n')
+# Rewritten rather than regenerated: both files are mostly explanation of what
+# the pin means and why it is separate from the others.
+replace_once("pkgs/flutter-engine-revision.nix",
+             r'"[0-9a-f]{40}"', f'"{engine_revision}"')
+replace_once("pkgs/denial-ui-development/source.nix",
+             r'(sourceRev = ")[0-9a-f]{40}(";)', rf'\g<1>{release_revision}\g<2>')
+# Five files carry the same tarball hash for the denial source tree: they all
+# fetch denialwm/denial at the same tag, so the tarball -- and therefore the
+# hash -- is identical. All five have to move together: leaving one behind is
+# a hash mismatch at build time.
+#
+# Two of them are easy to miss. `pkgs/denial-ui/package.nix` is a separate
+# derivation from `pkgs/denial` (different cargo feature, `ui-development`
+# instead of `flutter`), and `pkgs/denial-ui-development/source.nix` is only
+# ever mentioned here for its `sourceRev` (updated just above), so its hash is
+# invisible unless you go looking for it. Both build from the same source tree,
+# so both pin the same tarball -- and `denial-ui-development-source` depends on
+# `denial-ui`, so a stale hash in either one breaks that build too.
+#
+# Safe to use `count=1` on each: in all five files the src tarball hash is the
+# only `hash = "sha256-..."` occurrence.
+for path in ("pkgs/denial/package.nix",
+             "pkgs/denial-ui/package.nix",
+             "pkgs/denial-ui-development/source.nix",
+             "pkgs/denial-flutter-shell/source.nix",
+             "pkgs/denial-settings/source.nix"):
+    replace_once(path, r'hash = "sha256-[^"]+";', f'hash = "{source_hash}";')
+
+# Generated whole rather than patched with a regex: the file is a table keyed by
+# platform, and a `count=1` substitution would only ever reach the first
+# platform once upstream publishes more than one.
+def entry(name, filename, hash_value):
+    return f'''    {name} = {{
+      url = "https://github.com/denialwm/denial/releases/download/v${{version}}/{filename}";
+      hash = "{hash_value}";
+    }};
+'''
+
+entries = "".join([
+    entry("denial", f"denial-${{version}}-1-x86_64.pkg.tar.zst", denial_hash),
+    entry("engine", f"denial-flutter-engine-1.${{version}}-1-x86_64.pkg.tar.zst", engine_hash),
+    entry("uiDevelopment", f"denial-ui-development-${{version}}-1-x86_64.pkg.tar.zst", ui_development_hash),
+])
+
+Path("pkgs/prebuilt-hashes.nix").write_text(f'''# Prebuilt release artifacts, keyed by host platform.
+#
+# Upstream currently publishes x86_64 payloads only. Rather than picking a
+# fallback at evaluation time, every prebuilt consumer looks up its own entry
+# here and throws when the current platform has none. That keeps the failure
+# explicit: on an unsupported platform the build stops with a message pointing
+# at `useSource = true`, instead of silently producing an x86_64 binary inside
+# an aarch64 store path.
+#
+# To add a platform, add one attrset here. Nothing else has to change: no
+# `if isx86_64` branches in the derivations, no overlay branches, no changes to
+# the flake outputs. Partial coverage works too — if upstream ships an aarch64
+# engine before it ships an aarch64 settings payload, list only `engine` under
+# that platform and the other consumers keep throwing on their own.
+#
+# `shell` and `settings` deliberately reuse the `denial` entry: upstream ships
+# both inside the main compositor archive.
+let
+  version = import ./version.nix;
+in
+{{
+  "x86_64-linux" = {{
+{entries}  }};
+}}
+''')
+
+revisions = Path("pkgs/denial-flutter-engine/revisions.nix")
+text = revisions.read_text()
+for name, value in (("materialFontsVersion", material_fonts_version), ("gradleWrapperVersion", gradle_wrapper_version)):
+    text, count = re.subn(rf'({name} = )"[^"]+";', rf'\1"{value}";', text, count=1)
+    if count != 1:
+        raise SystemExit(f"expected one {name} field")
+revisions.write_text(text)
+
+artifacts = Path("pkgs/flutter-engine-artifacts.nix")
+text = artifacts.read_text()
+for binding, value in (('"x86_64-linux"', x64_artifacts_hash),
+                       ('"aarch64-linux"', arm64_artifacts_hash)):
+    text, count = re.subn(rf'({binding} = )"sha256-[^"]+";', rf'\1"{value}";', text, count=1)
+    if count != 1:
+        raise SystemExit(f"expected one {binding} artifacts hash")
+artifacts.write_text(text)
+
+flake = Path("flake.nix")
+text = flake.read_text()
+for binding, value in (("materialFonts", material_fonts_hash), ("gradleWrapper", gradle_wrapper_hash)):
+    text, count = re.subn(rf'({binding} = final\.fetchurl \{{.*?hash = )"sha256-[^"]+";', rf'\1"{value}";', text, count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"expected one {binding} hash")
+flake.write_text(text)
+PY
+
+echo "Updated ${release_tag}; Dart input unchanged at ${current_dart_version} (${current_dart_revision})." >&2

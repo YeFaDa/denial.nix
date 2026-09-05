@@ -15,16 +15,20 @@
 # instead. The compositor verifies the engine's SHA-256 fingerprint of the
 # runtime bundle at startup, so this artifact must stay coupled to the denial
 # package version.
+let
+  prebuilt = import ../prebuilt-hashes.nix;
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-engine";
   version = import ../version.nix;
 
-  src = fetchurl {
-    # Upstream names the artifact with Arch's epoch prefix: epoch 1 +
-    # version 0.2.10 => denial-flutter-engine-1.0.2.10-1-x86_64.pkg.tar.zst
-    url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-flutter-engine-1.${finalAttrs.version}-1-x86_64.pkg.tar.zst";
-    hash = "sha256-sNcM8UlBeJYbfb51ehOJWQTgOnJmEHUCUYMoO+Plfw0=";
-  };
+  # Looked up per platform rather than selected with an `if`: on a platform
+  # upstream publishes no engine for, this throws at evaluation time instead of
+  # fetching an x86_64 archive into an aarch64 store path.
+  src = fetchurl (
+    prebuilt.${stdenv.hostPlatform.system}.engine
+      or (throw "denial-flutter-engine: upstream publishes no prebuilt engine for ${stdenv.hostPlatform.system}; set useSource = true to build from source")
+  );
 
   nativeBuildInputs = [
     patchelf
@@ -46,7 +50,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildPhase = ''
     runHook preBuild
-    patchelf --set-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
+    patchelf --add-rpath "${lib.makeLibraryPath [ fontconfig ]}" \
       usr/lib/denial/flutter/lib/libflutter_engine.so
     runHook postBuild
   '';

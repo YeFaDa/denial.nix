@@ -29,9 +29,31 @@
   xwayland,
   zenity,
 
-  denial-flutter-engine,
-  denial-flutter-shell,
+  denial-flutter-engine-prebuilt,
+  denial-flutter-shell-prebuilt,
+  denial-flutter-engine-source,
+  denial-flutter-shell-source,
+  denial-settings-prebuilt,
+  denial-settings-source,
+
+  # Use the -source variants of the Flutter engine, shell and settings bundle
+  # instead of the prebuilt release artifacts.
+  #
+  # This deliberately stays false even on platforms upstream publishes no
+  # prebuilt artifacts for. See pkgs/prebuilt-hashes.nix: on such a platform
+  # the prebuilt consumers throw with a message pointing here, so the choice
+  # stays with whoever builds the package rather than being made for them.
+  useSource ? false,
 }:
+
+let
+  denial-flutter-engine =
+    if useSource then denial-flutter-engine-source else denial-flutter-engine-prebuilt;
+  denial-flutter-shell =
+    if useSource then denial-flutter-shell-source else denial-flutter-shell-prebuilt;
+  denialSettings =
+    if useSource then denial-settings-source else denial-settings-prebuilt;
+in
 
 # Packaging model (mirrors niri's nixpkgs package for the Rust part):
 #
@@ -54,7 +76,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-LEn3JA7PZ5IckhMhgTcVBokkxfxE/QJ/UmSNutM/GGY=";
+    hash = "sha256-qRbD0HvBJ87QWriQsx6GWdYVMnKj1Iae8QLRaxRL8T4=";
   };
 
   # The cargo workspace lives in compositor/: cargoRoot places the vendored
@@ -174,6 +196,19 @@ rustPlatform.buildRustPackage (finalAttrs: {
     ln -s "${lib.getLib denial-flutter-engine}/lib/denial/flutter/data/icudtl.dat" \
       "$bundle/data/icudtl.dat"
 
+    # The settings bundle is always assembled now that both parameters are
+    # mandatory; the `-e` check below still matters because only some builds
+    # ship the .desktop file.
+    mkdir -p "$out/bin" "$out/share/applications"
+    ln -s "${denialSettings}/bin/denial-settings" \
+      "$out/bin/denial-settings"
+    ln -s "${denialSettings}/lib/denial/settings" \
+      "$out/lib/denial/settings"
+    if [ -e "${denialSettings}/share/applications/dev.denial.Settings.desktop" ]; then
+      ln -s "${denialSettings}/share/applications/dev.denial.Settings.desktop" \
+        "$out/share/applications/dev.denial.Settings.desktop"
+    fi
+
     install -Dm555 packaging/arch/denial-session "$out/bin/denial-session"
     wrapProgram "$out/bin/denial-session" \
       --prefix PATH : "${lib.makeBinPath [
@@ -200,7 +235,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$out/share/xdg-desktop-portal-wlr/Denial"
     install -Dm644 packaging/arch/outputs.conf packaging/arch/session.conf \
       -t "$out/share/denial"
-
     installManPage docs/man/deniald.1 docs/man/denialctl.1 \
       docs/man/denial-session.1 docs/man/denial-portal.1
 
@@ -213,23 +247,27 @@ rustPlatform.buildRustPackage (finalAttrs: {
   passthru = {
     providedSessions = [ "denial" ];
     inherit denial-flutter-engine denial-flutter-shell;
+    # Read by the NixOS module to pick the matching UI development toolchain.
+    # Exposed here rather than inferred from the name or from `meta` so that an
+    # overridden or renamed package still reports where its Flutter parts came
+    # from. Only these three components follow `useSource`; the Rust side is
+    # built from source either way.
+    flutterFromSource = useSource;
   };
 
   meta = {
     description = "Flutter-native Wayland compositor and desktop shell";
     homepage = "https://github.com/denialwm/denial";
     changelog = "https://github.com/denialwm/denial/releases/tag/v${finalAttrs.version}";
-    license = with lib.licenses; [
-      gpl3Plus # compositor
-      cc-by-sa-40 # bundled wallpapers and cursor assets
-      ofl # bundled JetBrains Mono
-    ];
+    license = with lib.licenses; [ gpl3Plus cc-by-sa-40 ofl ];
     mainProgram = "deniald";
-    platforms = [ "x86_64-linux" ]; # prebuilt shell bundle is x86-64 only
-    sourceProvenance = with lib.sourceTypes; [
-      binaryNativeCode # Flutter engine and AOT shell from the release payload
-    ];
+    platforms = [ "x86_64-linux" "aarch64-linux" ];
+    # Always partly from source: deniald and denialctl are built by cargo
+    # here regardless of `useSource`, which only selects where the bundled
+    # Flutter engine, shell and settings bundle come from. Marking this
+    # binary-only would hide that the compositor itself is auditable.
+    sourceProvenance = with lib.sourceTypes;
+      [ fromSource ] ++ lib.optional (!useSource) binaryNativeCode;
     hydraPlatforms = [ ];
-    maintainers = [ ];
   };
 })

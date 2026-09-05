@@ -10,14 +10,21 @@
 # SDK fork pinned in prebuilt/flutter-tools/3.44.7 of the denial repository;
 # it only loads in the matching forked engine, so this artifact must stay
 # coupled to the denial-flutter-engine and denial package versions.
+let
+  prebuilt = import ../prebuilt-hashes.nix;
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-flutter-shell";
   version = import ../version.nix;
 
-  src = fetchurl {
-    url = "https://github.com/denialwm/denial/releases/download/v${finalAttrs.version}/denial-${finalAttrs.version}-1-x86_64.pkg.tar.zst";
-    hash = "sha256-xJ3eYDtVqUvSCZQ6h9GG265azOnEHTdB+oB2Wo3D/Bg=";
-  };
+  # Upstream ships the shell inside the main compositor archive, hence the
+  # `denial` entry. Looked up per platform rather than selected with an `if`:
+  # on a platform upstream publishes nothing for, this throws at evaluation
+  # time instead of fetching an x86_64 archive into an aarch64 store path.
+  src = fetchurl (
+    prebuilt.${stdenv.hostPlatform.system}.denial
+      or (throw "denial-flutter-shell: upstream publishes no prebuilt shell for ${stdenv.hostPlatform.system}; set useSource = true to build from source")
+  );
 
   nativeBuildInputs = [ zstd ];
 
