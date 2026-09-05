@@ -344,6 +344,20 @@ EOF
     runHook postInstall
   '';
 
+  # Only meaningful for the release build: the debug and profile engines leave
+  # `out` empty, so there is no runtime library to patch.
+  postFixup = lib.optionalString (runtimeMode == "release") ''
+    # Same reason as the prebuilt engine: the shell's GPU telemetry dlopens
+    # NVML by bare soname from Dart FFI, and glibc consults the calling
+    # object's RUNPATH for dlopen. libnvidia-ml.so.1 only exists in the host's
+    # OpenGL driver directory; a missing path is skipped silently. Runs here
+    # rather than in installPhase because stdenv's fixup shrink-RPATH pass
+    # deletes non-store entries from anything patched earlier.
+    chmod u+w "$out/lib/denial/flutter/lib/libflutter_engine.so"
+    patchelf --add-rpath "/run/opengl-driver/lib" \
+      "$out/lib/denial/flutter/lib/libflutter_engine.so"
+  '';
+
   passthru = {
     inherit dart runtimeMode;
     localEngine = target;

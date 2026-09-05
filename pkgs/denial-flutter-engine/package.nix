@@ -55,6 +55,21 @@ stdenv.mkDerivation (finalAttrs: {
     runHook postBuild
   '';
 
+  # Not in buildPhase: stdenv's fixup phase shrinks RPATHs to store prefixes
+  # and would delete a non-store entry added earlier. postFixup runs after
+  # that shrink, so the entry placed here survives.
+  postFixup = ''
+    # The shell's GPU telemetry dlopens NVML (libnvidia-ml.so.1) by bare soname
+    # from Dart FFI code inside the engine, and glibc consults the calling
+    # object's RUNPATH for dlopen. That library ships with the NVIDIA driver
+    # and is never in the store, so the only place it can resolve from is the
+    # host's OpenGL driver directory. A nonexistent path is skipped by the
+    # dynamic linker, which keeps non-NixOS and driverless hosts unaffected.
+    chmod u+w "$out/lib/denial/flutter/lib/libflutter_engine.so"
+    patchelf --add-rpath "/run/opengl-driver/lib" \
+      "$out/lib/denial/flutter/lib/libflutter_engine.so"
+  '';
+
   installPhase = ''
     runHook preInstall
 

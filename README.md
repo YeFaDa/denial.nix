@@ -153,7 +153,13 @@ sources when it exists; the module provides it through `environment.etc`.
 `libpam.so.0` and `libddcutil.so.5`; those libraries are buildInputs so the
 generated RUNPATH resolves them (same trick as niri, plus explicit force
 linking of EGL/wayland-server). The prebuilt engine gets a patched RUNPATH to
-find `libfontconfig`.
+find `libfontconfig`. Both engine variants (prebuilt and source) also get
+`/run/opengl-driver/lib` on that RUNPATH: the shell's GPU telemetry dlopens
+NVML (`libnvidia-ml.so.1`) by bare soname from Dart FFI inside the engine, and
+that library comes from the NVIDIA driver rather than the store, so it can only
+resolve through the host's OpenGL driver directory. A missing directory is
+skipped by the dynamic linker, which leaves hosts without the driver — or
+without NixOS — unaffected.
 
 ## Usage
 
