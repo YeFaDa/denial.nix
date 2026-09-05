@@ -109,6 +109,12 @@ in
       #
       # Listed before extraSessionConf so an explicit entry there wins.
       "DENIAL_PAM_SERVICE=denial"
+      # The shell asks deniald to spawn this exact path; upstream defaults to
+      # /usr/bin/denial-settings, which does not exist on NixOS. Every variant
+      # of the package ships bin/denial-settings, and deniald's spawned
+      # children inherit the session environment, so the wrapper's
+      # LD_LIBRARY_PATH reaches the settings binary too.
+      "DENIAL_SETTINGS_BINARY=${cfg.package}/bin/denial-settings"
       (lib.mapAttrsToList (n: v: "${n}=${v}") cfg.extraSessionConf)
     ]);
 

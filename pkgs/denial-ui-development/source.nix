@@ -3,8 +3,24 @@
   stdenv,
   fetchFromGitHub,
   jq,
+  patchelf,
   python3,
   unzip,
+
+  # Runtime RUNPATH entries baked into the engine libraries at postFixup; see
+  # the comment there. The engines themselves link these same libraries, but
+  # only what the build linked ends up on their RUNPATH, and NixOS has no
+  # ld.so.cache to resolve the rest.
+  fontconfig,
+  libglvnd,
+  mesa,
+  gtk3,
+  glib,
+  pango,
+  cairo,
+  atk,
+  gdk-pixbuf,
+  libepoxy,
 
   # The pinned Flutter fork: supplies the SDK skeleton (packages/, bin/internal,
   # lib/ui) that the runtime tree is assembled around.
@@ -65,6 +81,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     jq
+    patchelf
     python3
     unzip
   ];
@@ -352,6 +369,34 @@ stdenv.mkDerivation (finalAttrs: {
       -type d -exec chmod 0755 -- {} +
 
     runHook postInstall
+  '';
+
+  # The engine libraries enter the SDK tree straight from the GN build, whose
+  # RUNPATH covers what the build linked — but three things are only reached
+  # at runtime, and NixOS has no ld.so.cache or default library directories
+  # to fall back on:
+  #   - libfontconfig.so.1, a DT_NEEDED of the engine (--enable-fontconfig);
+  #   - libnvidia-ml.so.1, dlopened by bare soname from Dart FFI inside the
+  #     engine for the shell's GPU telemetry;
+  #   - the GL dispatchers (libEGL.so.1 & co.), dlopened by the engine's own
+  #     renderer in the dev session — glvnd and Mesa for the dispatchers, plus
+  #     /run/opengl-driver/lib so the vendor libraries themselves resolve.
+  # The profile build's GTK embedding gets the same treatment for its GTK
+  # stack. Not in installPhase: stdenv's fixup shrink-RPATH pass would delete
+  # the non-store entry (and any entry no DT_NEEDED points at); postFixup runs
+  # after that shrink, so entries added here survive.
+  postFixup = ''
+    for engine in \
+      "$out/lib/denial/ui-development/lib/libflutter_engine.so" \
+      "$out/lib/denial/ui-development/profile/lib/libflutter_engine.so"
+    do
+      patchelf --add-rpath "${lib.makeLibraryPath [ fontconfig libglvnd mesa ]}" "$engine"
+      patchelf --add-rpath "/run/opengl-driver/lib" "$engine"
+    done
+    patchelf --add-rpath "${lib.makeLibraryPath [
+      gtk3 glib pango cairo atk gdk-pixbuf libepoxy fontconfig libglvnd mesa
+    ]}" \
+      "$out/lib/denial/ui-development/flutter/bin/cache/artifacts/engine/${flutterArch.platform}-profile/libflutter_linux_gtk.so"
   '';
 
   passthru = {

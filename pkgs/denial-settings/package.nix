@@ -4,6 +4,7 @@
   fetchurl,
   zstd,
   makeWrapper,
+  patchelf,
   glib,
   gtk3,
   libepoxy,
@@ -12,6 +13,9 @@
   atk,
   gdk-pixbuf,
   libglvnd,
+  harfbuzz,
+  zlib,
+  fontconfig,
   denialSettingsSource ? null,
   useSource ? false,
 }:
@@ -34,7 +38,7 @@ if useSource then denialSettingsSource else stdenv.mkDerivation (finalAttrs: {
       or (throw "denial-settings: upstream publishes no prebuilt settings bundle for ${stdenv.hostPlatform.system}; build the -source variant instead")
   );
 
-  nativeBuildInputs = [ zstd makeWrapper ];
+  nativeBuildInputs = [ zstd makeWrapper patchelf ];
 
   setSourceRoot = "sourceRoot=.";
 
@@ -65,14 +69,30 @@ if useSource then denialSettingsSource else stdenv.mkDerivation (finalAttrs: {
     if [ -f usr/share/applications/dev.denial.Settings.desktop ]; then
       install -Dm444 usr/share/applications/dev.denial.Settings.desktop \
         "$out/share/applications/dev.denial.Settings.desktop"
+      # Upstream's entry hardcodes /usr/bin, which does not exist on NixOS;
+      # the source build already makes the same substitution, so the two
+      # variants stay consistent.
+      substituteInPlace "$out/share/applications/dev.denial.Settings.desktop" \
+        --replace-fail /usr/bin/denial-settings "${lib.placeholder "out"}/bin/denial-settings"
     fi
     runHook postInstall
   '';
 
   postFixup = ''
+    # Upstream builds this bundle for generic Linux: the runner's ELF
+    # interpreter points at /lib64/ld-linux-x86-64.so.2, where NixOS mounts a
+    # rejecting stub, and NixOS offers no ld.so.cache or default library
+    # directories to fall back on. Point the interpreter at this stdenv's
+    # loader and spell out every direct DT_NEEDED of the two prebuilt objects
+    # in the LD_LIBRARY_PATH below — a missing entry is a startup failure,
+    # not a degraded feature.
+    chmod u+w "$out/lib/denial/settings/denial-settings"
+    patchelf --set-interpreter "${stdenv.cc.bintools.dynamicLinker}" \
+      "$out/lib/denial/settings/denial-settings"
     wrapProgram "$out/bin/denial-settings" \
       --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
         glib gtk3 libepoxy pango cairo atk gdk-pixbuf libglvnd
+        harfbuzz zlib fontconfig stdenv.cc.cc.lib
       ]}"
   '';
 

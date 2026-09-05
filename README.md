@@ -12,7 +12,7 @@ Maintainer Note: Due to limited personal maintenance bandwidth, I may not be abl
 | `deniald`, `denialctl`, `denial-portal`, session files | `denial` | Rust source | Rust source |
 | `libflutter_engine.so`, `icudtl.dat` | `denial-flutter-engine` | upstream release artifact | locked Flutter/Skia sources with GN/Ninja |
 | `libapp.so`, `flutter_assets` | `denial-flutter-shell` | upstream release artifact | `buildFlutterApplication` with the matching local engine |
-| live UI toolchain (Flutter SDK + debug/profile engines) | `denial-ui-development` | upstream release archive | `denial-ui-development-source`, assembled from the local engine builds |
+| live UI toolchain (Flutter SDK + debug/profile engines) | `denial-ui-development` | upstream release archive in an FHS environment | `denial-ui-development-source`, assembled from the local engine builds |
 
 The default `denial` package always builds `deniald`, `denialctl`, and
 `denial-portal` from Rust source. Its `useSource` option selects only the
@@ -269,6 +269,20 @@ turn it on explicitly:
 programs.denial.uiDevelopment.enable = true;
 ```
 
+The prebuilt toolchain is the upstream release archive wrapped in a bubblewrap
+FHS environment (`buildFHSEnv`). The payload is built for generic Linux — its
+ELFs carry a `/lib64` interpreter where NixOS mounts a rejecting stub, and
+their sonames have no `ld.so.cache` to resolve through — so patching it
+ELF-by-ELF is not realistic. Inside the environment it runs exactly as
+upstream intends: the launcher's compiled-in `/usr/lib/denial/ui-development`
+root is recreated, `flutter build` shells out to the packaged CMake, Ninja and
+Clang, and `/run/opengl-driver` stays reachable so GL uses the host's driver.
+The first `denial-ui prepare` copies the Pub cache seed and build state into
+`~/.cache/denial/ui-development`, so the read-only store behaves like a
+root-owned `/usr` would upstream. The entry point keeps upstream's CLI:
+`denial-ui COMMAND [WORKSPACE]`, with `denial-ui doctor` reporting whatever
+is missing.
+
 The toolchain follows the compositor you actually selected, not the `useSource`
 flag, so a source-built `denial` gets `denial-ui-development-source` and a
 prebuilt one gets the prebuilt toolchain. Hand-written
@@ -288,7 +302,11 @@ Notes:
 - CJK fallback fonts (upstream ships `adobe-source-han-sans-cn-fonts`) are a
   fontconfig concern; add a CJK font to `fonts.packages` if needed.
 - The `denial` package includes `denial-settings` and its desktop entry, using
-  whichever bundle `useSource` selects.
+  whichever bundle `useSource` selects. Two NixOS adaptations ride along: the
+  module points the shell's hardcoded `/usr/bin/denial-settings` lookup at the
+  packaged launcher through `DENIAL_SETTINGS_BINARY` in `session.conf`, and the
+  prebuilt bundle's ELF interpreter is repointed at the NixOS loader (upstream
+  builds it for generic Linux, which NixOS's stub loader refuses to run).
 - **`aarch64` needs one extra line.** Upstream publishes no prebuilt artifacts
   for it, so `pkgs.denial` throws there by design:
 
