@@ -184,6 +184,49 @@ curl -fsSL "$release_raw/settings_app/pubspec.lock" \
   > pkgs/denial-settings/pubspec.lock.json
 curl -fsSL "$release_raw/compositor/Cargo.lock" > pkgs/denial/Cargo.lock
 
+# The workspace's git dependencies need one outputHashes entry each, keyed by
+# "name-version". Both Rust packages share the workspace lockfile, so both
+# files carry the identical map and are rewritten together. The hash of a
+# git+URL?rev= source as computed by `nix flake prefetch` is exactly the hash
+# nixpkgs' cargoLock vendoring expects (verified against the pinned Smithay
+# entries).
+python3 - <<'PY'
+from pathlib import Path
+import json
+import re
+import subprocess
+import tomllib
+
+lock = tomllib.load(open("pkgs/denial/Cargo.lock", "rb"))
+wanted = {}
+for pkg in lock["package"]:
+    source = pkg.get("source", "")
+    if not source.startswith("git+"):
+        continue
+    m = re.search(r"[?&]rev=([0-9a-f]{40})", source)
+    if not m:
+        raise SystemExit(f"git dependency without a pinned rev in Cargo.lock: {pkg['name']}")
+    url = source[4:].split("?")[0].rstrip("/")
+    wanted[f"{pkg['name']}-{pkg['version']}"] = (url, m.group(1))
+
+hashes = {}
+for url, rev in sorted(set(wanted.values())):
+    out = json.loads(subprocess.check_output(
+        ["nix", "flake", "prefetch", f"git+{url}?rev={rev}", "--json"]))
+    hashes[(url, rev)] = out["hash"]
+
+entries = "".join(
+    f'      "{key}" = "{hashes[value]}";\n' for key, value in sorted(wanted.items()))
+block = f"outputHashes = {{\n{entries}    }};"
+for path in ("pkgs/denial/package.nix", "pkgs/denial-ui/package.nix"):
+    file = Path(path)
+    text, count = re.subn(r"outputHashes = \{[^}]*\};", block, file.read_text(), count=1)
+    if count != 1:
+        raise SystemExit(f"expected one outputHashes block in {path}")
+    file.write_text(text)
+print(f"outputHashes refreshed: {', '.join(sorted(wanted))}", file=__import__("sys").stderr)
+PY
+
 gclient2nix_linux="$(nix build .#gclient2nix-linux --no-link --no-write-lock-file --print-out-paths)"
 [[ -x "$gclient2nix_linux/bin/gclient2nix" ]] || {
   echo "gclient2nix-linux package is missing its executable" >&2
