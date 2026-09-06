@@ -23,13 +23,16 @@
   mesa,
 
   # `flutter build linux` shells out to these. The upstream archive bundles
-  # none of them and expects the distribution to provide them, so they run
-  # inside the same environment.
+  # none of them and expects the distribution to provide them — upstream's
+  # PKGBUILD does not even declare them, leaning on Arch's base-devel habit
+  # (gcc), which is why gcc sits beside clang: CMake uses whichever the
+  # environment offers, and we do not guess which one a workspace expects.
   git,
   cmake,
   ninja,
   pkg-config,
   clang,
+  gcc,
 }:
 
 let
@@ -98,7 +101,10 @@ buildFHSEnv {
   executableName = "denial-ui";
   runScript = "/usr/bin/denial-ui";
 
-  targetPkgs = pkgs: with pkgs; [
+  # Two groups, both mirroring what upstream's Arch packaging expects from the
+  # distribution rather than bundling. The libraries come in as callPackage
+  # arguments so a host can override one without forking the environment.
+  targetPkgs = pkgs: [
     glib
     gtk3
     pango
@@ -118,6 +124,7 @@ buildFHSEnv {
     ninja
     pkg-config
     clang
+    gcc
   ];
 
   # extraBuildCommands runs outside the rootfs tree in this buildFHSEnv

@@ -252,9 +252,12 @@ dependencies:
 
 ```nix
 programs.denial.extraRuntimePackages = with pkgs; [
-  networkmanager      # network controls (nmcli)
-  upower              # battery status
+  networkmanager        # network controls (nmcli)
+  iwd                   # Wi-Fi controls without NetworkManager
+  upower                # battery status
   power-profiles-daemon
+  lact                  # AMD GPU performance controls
+  pipewire-pulse        # desktop audio controls
 ];
 ```
 
