@@ -13,7 +13,7 @@ let
     # scripts/update-release-pins on each release. Builds must not drift to
     # whatever rustc the surrounding nixpkgs happens to ship: upstream tracks
     # current stable Rust and uses its newest stabilized APIs in-tree.
-    rustToolchain = final.callPackage ./pkgs/rust-toolchain { };
+    rustToolchain = final.callPackage ./pkgs/rust-toolchain/package.nix { };
     rustPlatformPinned = final.makeRustPlatform {
       inherit (rustToolchain) rustc cargo;
     };

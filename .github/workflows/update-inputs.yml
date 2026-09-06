@@ -1,0 +1,42 @@
+name: Auto-update flake inputs
+
+# The Denial-side pins are refreshed daily by update.yml, but the flake's own
+# nixpkgs input only moves when someone runs `nix flake update`. Since rustc
+# and the Dart SDK are pinned inside the packages, a stale nixpkgs is not a
+# build-correctness problem — but it does lag system libraries and security
+# fixes. Roll it weekly, in a PR separate from the Denial release PRs so a
+# breakage is attributable to one or the other.
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # weekly, Mondays 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update-inputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Update flake inputs
+        run: nix flake update nixpkgs
+      - name: Check that the flake still evaluates
+        run: nix flake check --no-build
+      - name: Create input update pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/flake-inputs
+          delete-branch: true
+          commit-message: "chore: update flake inputs"
+          title: "chore: update flake inputs (nixpkgs, rust-overlay)"
+          body: |
+            Weekly `nix flake update nixpkgs rust-overlay`.
+
+            Automatic input update only. Build and review this PR manually before merging.
+          add-paths: |
+            flake.lock

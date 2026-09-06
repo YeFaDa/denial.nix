@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Update derivable pins for one Denial release.
-# Dart input changes are deliberately left for a human because the matching
-# nixpkgs revision cannot be inferred from a Dart source revision.
+# Update derivable pins for one Denial release. The Dart SDK version (from
+# tools/VERSION at the DEPS-pinned dart revision) and the Rust toolchain (the
+# release's rust-toolchain.toml) are both derived from the release tag itself
+# and need no human action.
 set -euo pipefail
 
 release_tag="${1:?usage: scripts/update-release-pins vX.Y.Z}"
@@ -22,6 +23,10 @@ for command in curl jq nix python3 sed tr; do
     exit 2
   }
 done
+
+prefetch_hash() {
+  nix store prefetch-file --json --hash-type sha256 "$1" | jq -er '.hash'
+}
 
 version="${release_tag#v}"
 release_raw="https://raw.githubusercontent.com/denialwm/denial/${release_tag}"
@@ -66,15 +71,7 @@ new_dart_revision="$(curl -fsSL "$flutter_raw/DEPS" \
 
 dart_version_file="$(curl -fsSL "https://raw.githubusercontent.com/dart-lang/sdk/${new_dart_revision}/tools/VERSION")"
 new_dart_version="$(sed -nE 's/^MAJOR ([0-9]+)$/\1/p' <<<"$dart_version_file").$(sed -nE 's/^MINOR ([0-9]+)$/\1/p' <<<"$dart_version_file").$(sed -nE 's/^PATCH ([0-9]+)$/\1/p' <<<"$dart_version_file")"
-current_dart_version="$(nix eval --raw .#packages.x86_64-linux.denial-flutter-engine-source.passthru.dart.version --no-write-lock-file)"
-current_dart_revision="$(jq -er '."engine/src/flutter/third_party/dart".args.rev' pkgs/denial-flutter-engine/gclient-deps.json)"
-if [[ "$new_dart_version" != "$current_dart_version" || "$new_dart_revision" != "$current_dart_revision" ]]; then
-  cat >&2 <<EOF
-Dart input changed: current ${current_dart_version} (${current_dart_revision}), release ${new_dart_version} (${new_dart_revision}).
-Update nixpkgs-dart and flake.lock manually, then rerun this script.
-EOF
-  exit 3
-fi
+current_dart_version="$(sed -nE 's/^"(.*)"$/\1/p' pkgs/dart-sdk/version.nix)"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -82,6 +79,82 @@ export HOME="$work/home"
 export XDG_CACHE_HOME="$work/cache"
 export JOBLIB_TEMP_FOLDER="$work/joblib"
 mkdir -p "$HOME" "$XDG_CACHE_HOME" "$JOBLIB_TEMP_FOLDER"
+
+# Keep the vendored Rust toolchain in step with the release: upstream pins its
+# own compiler in rust-toolchain.toml and uses its newest stabilized APIs, so
+# the packaged build must compile against exactly what upstream tests.
+curl -fsSL "$release_raw/rust-toolchain.toml" > pkgs/denial/rust-toolchain.toml
+
+# The toolchain itself is pinned by version -> hash table (unpacking the
+# official installer bundle through nixpkgs' binary.nix), so a changed Rust
+# version is not a manual step either: derive the hashes from Rust's signed
+# release manifest.
+new_rust_version="$(sed -nE 's/^channel = "(.+)"$/\1/p' pkgs/denial/rust-toolchain.toml)"
+if ! grep -qF "\"${new_rust_version}\"" pkgs/rust-toolchain/hashes.nix; then
+  echo "Rust toolchain changed: adding ${new_rust_version} to pkgs/rust-toolchain/hashes.nix" >&2
+  curl -fsSL "https://static.rust-lang.org/dist/channel-rust-${new_rust_version}.toml" -o "$work/rust-manifest.toml"
+  python3 - "$new_rust_version" "$work/rust-manifest.toml" <<'PY'
+from pathlib import Path
+import base64
+import sys
+import tomllib
+
+(version, manifest_path) = sys.argv[1:]
+with open(manifest_path, "rb") as f:
+    manifest = tomllib.load(f)
+
+def sri(target):
+    hex_hash = manifest["pkg"]["rust"]["target"][target]["xz_hash"]
+    return "sha256-" + base64.b64encode(bytes.fromhex(hex_hash)).decode()
+
+x64 = sri("x86_64-unknown-linux-gnu")
+arm64 = sri("aarch64-unknown-linux-gnu")
+path = Path("pkgs/rust-toolchain/hashes.nix")
+text = path.read_text().rstrip()
+if not text.endswith("}"):
+    raise SystemExit("unexpected tail in pkgs/rust-toolchain/hashes.nix")
+entry = f'''  "{version}" = {{
+    "x86_64-linux" = "{x64}";
+    "aarch64-linux" = "{arm64}";
+  }};
+}}
+'''
+path.write_text(text[:-1].rstrip() + "\n\n" + entry)
+PY
+fi
+
+# The Dart SDK is pinned by version -> hash table instead of a nixpkgs
+# snapshot input, so a changed Dart revision is no longer a manual step:
+# derive the release version and append the archive hashes.
+if [[ "$new_dart_version" != "$current_dart_version" ]]; then
+  echo "Dart SDK changed: ${current_dart_version} -> ${new_dart_version}; updating pkgs/dart-sdk." >&2
+  grep -q "\"${new_dart_version}\"" pkgs/dart-sdk/sdks.nix && {
+    echo "pkgs/dart-sdk/sdks.nix already has an entry for ${new_dart_version} but version.nix says ${current_dart_version}" >&2
+    exit 3
+  }
+  dart_sdk_base="https://storage.googleapis.com/dart-archive/channels/stable/release/${new_dart_version}/sdk"
+  dart_x64_hash="$(prefetch_hash "${dart_sdk_base}/dartsdk-linux-x64-release.zip")"
+  dart_arm64_hash="$(prefetch_hash "${dart_sdk_base}/dartsdk-linux-arm64-release.zip")"
+  printf '"%s"\n' "$new_dart_version" > pkgs/dart-sdk/version.nix
+  current_dart_version="$new_dart_version"
+  python3 - "$new_dart_version" "$dart_x64_hash" "$dart_arm64_hash" <<'PY'
+from pathlib import Path
+import sys
+
+(version, x64_hash, arm64_hash) = sys.argv[1:]
+path = Path("pkgs/dart-sdk/sdks.nix")
+text = path.read_text().rstrip()
+if not text.endswith("}"):
+    raise SystemExit("unexpected tail in pkgs/dart-sdk/sdks.nix")
+entry = f'''  "{version}" = {{
+    "x86_64-linux" = "{x64_hash}";
+    "aarch64-linux" = "{arm64_hash}";
+  }};
+}}
+'''
+path.write_text(text[:-1].rstrip() + "\n\n" + entry)
+PY
+fi
 
 dart_path="$(nix build .#denial-flutter-engine-source.passthru.dart \
   --no-link --no-write-lock-file --print-out-paths)"
@@ -122,9 +195,6 @@ PATH="$gclient2nix_linux/bin:$PATH" gclient2nix generate \
 
 material_fonts_version="$(curl -fsSL "$flutter_raw/bin/internal/material_fonts.version" | tr -d '\r\n')"
 gradle_wrapper_version="$(curl -fsSL "$flutter_raw/bin/internal/gradle_wrapper.version" | tr -d '\r\n')"
-prefetch_hash() {
-  nix store prefetch-file --json --hash-type sha256 "$1" | jq -er '.hash'
-}
 material_fonts_hash="$(prefetch_hash "https://storage.googleapis.com/${material_fonts_version}")"
 gradle_wrapper_hash="$(prefetch_hash "https://storage.googleapis.com/${gradle_wrapper_version}")"
 denial_hash="$(prefetch_hash "${release_base}/denial-${version}-1-x86_64.pkg.tar.zst")"
@@ -253,4 +323,4 @@ for binding, value in (("materialFonts", material_fonts_hash), ("gradleWrapper",
 flake.write_text(text)
 PY
 
-echo "Updated ${release_tag}; Dart input unchanged at ${current_dart_version} (${current_dart_revision})." >&2
+echo "Updated ${release_tag}; Dart SDK at ${current_dart_version} (${new_dart_revision}), Rust toolchain per the release's rust-toolchain.toml." >&2
