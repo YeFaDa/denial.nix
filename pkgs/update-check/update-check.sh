@@ -66,7 +66,6 @@ release_update=0
 [[ "$latest" != "v$current" ]] && release_update=1
 
 source_update=0
-dart_manual_update=0
 source_lock_url=''
 source_lock_sha256=''
 new_flutter_revision=''
@@ -124,10 +123,6 @@ if [[ "$inspect_source" == 1 ]]; then
         "$new_gradle_wrapper_path" != "$current_gradle_wrapper_version" ]]; then
     source_update=1
   fi
-  if [[ "$new_dart_version" != "$current_dart_version" || \
-        "$new_dart_revision" != "$current_dart_revision" ]]; then
-    dart_manual_update=1
-  fi
 fi
 
 has_update=0
@@ -161,7 +156,7 @@ if [[ "$json" == 1 ]]; then
   jq -n \
     --arg current "$current" --arg latest "$latest" \
     --argjson has_update "$has_update" --argjson release_update "$release_update" --argjson source_update "$source_update" \
-    --argjson dart_manual_update "$dart_manual_update" --arg new_version "$new_version" \
+    --arg new_version "$new_version" \
     --arg denial_url "$new_denial_url" --arg denial_hash "$new_denial_sha256" \
     --arg engine_url "$new_engine_url" --arg engine_hash "$new_engine_sha256" \
     --arg ui_dev_url "$new_ui_dev_url" --arg ui_dev_hash "$new_ui_dev_sha256" \
@@ -170,13 +165,13 @@ if [[ "$json" == 1 ]]; then
     --arg current_dart_version "$current_dart_version" --arg current_material "$current_material_fonts_version" --arg current_gradle "$current_gradle_wrapper_version" \
     --arg new_flutter "$new_flutter_revision" --arg new_dart "$new_dart_revision" --arg new_skia "$new_skia_revision" \
     --arg new_dart_version "$new_dart_version" --arg new_material "$new_material_fonts_path" --arg new_gradle "$new_gradle_wrapper_path" \
-    '{current: $current, latest: $latest, has_update: $has_update, release_update: $release_update, source_update: $source_update, dart_manual_update: $dart_manual_update, new_version: $new_version,
+    '{current: $current, latest: $latest, has_update: $has_update, release_update: $release_update, source_update: $source_update, new_version: $new_version,
       prebuilt: {denial: {url: $denial_url, sha256: $denial_hash}, engine: {url: $engine_url, sha256: $engine_hash}, uiDevelopment: {url: $ui_dev_url, sha256: $ui_dev_hash}},
       source: {pinned: true, source_lock: {url: $source_lock_url, sha256: $source_lock_hash},
         current: {flutter_revision: $current_flutter, dart_revision: $current_dart, dart_version: $current_dart_version, skia_revision: $current_skia, material_fonts_version: $current_material, gradle_wrapper_version: $current_gradle},
         release: {flutter_revision: $new_flutter, dart_revision: $new_dart, dart_version: $new_dart_version, skia_revision: $new_skia, material_fonts_version: $new_material, gradle_wrapper_version: $new_gradle}},
       lock_files: {engine_tools: "pkgs/denial-flutter-engine/flutter-tools-pubspec.lock.json", shell: "pkgs/denial-flutter-shell/pubspec.lock.json", settings: "pkgs/denial-settings/pubspec.lock.json"},
-      actions: {cargo_lock: ("https://raw.githubusercontent.com/denialwm/denial/" + $latest + "/compositor/Cargo.lock"), gclient_deps: "regenerate from SOURCE_LOCK.json with gclient2nix", flutter_tools_lock: "regenerate from fixed Flutter source packages/flutter_tools/pubspec.yaml", shell_lock: "copy release source dart_shell/pubspec.lock", settings_lock: "copy release source settings_app/pubspec.lock", dart_input: "manual: update nixpkgs-dart and flake.lock only when Dart changes"}}'
+      actions: {cargo_lock: ("https://raw.githubusercontent.com/denialwm/denial/" + $latest + "/compositor/Cargo.lock"), gclient_deps: "regenerate from SOURCE_LOCK.json with gclient2nix", flutter_tools_lock: "regenerate from fixed Flutter source packages/flutter_tools/pubspec.yaml", shell_lock: "copy release source dart_shell/pubspec.lock", settings_lock: "copy release source settings_app/pubspec.lock", dart_input: "automatic: update-release-pins rewrites pkgs/dart-sdk/{version,sdks}.nix from the DEPS dart revision", rust_toolchain: "automatic: update-release-pins copies the release rust-toolchain.toml to pkgs/denial/rust-toolchain.toml"}}'
   exit 0
 fi
 
@@ -192,9 +187,6 @@ if [[ "$source_check" == 1 && "$inspect_source" == 1 ]]; then
   echo "source Skia:    $current_skia_revision -> ${new_skia_revision:-unavailable}"
   echo "material fonts: $current_material_fonts_version -> ${new_material_fonts_path:-unavailable}"
   echo "gradle wrapper: $current_gradle_wrapper_version -> ${new_gradle_wrapper_path:-unavailable}"
-  if [[ "$dart_manual_update" == 1 ]]; then
-    echo "Dart input: MANUAL ACTION REQUIRED (update nixpkgs-dart and flake.lock)"
-  fi
 fi
 if [[ "$has_update" == 0 ]]; then
   echo "Up to date: all checked pins match ${latest}."
@@ -213,7 +205,8 @@ Source:
   SOURCE_LOCK.json: ${source_lock_url}
   denial-flutter-shell/pubspec.lock.json: use the release source dart_shell/pubspec.lock
   denial-settings/pubspec.lock.json: use the release source settings_app/pubspec.lock
-  Dart input: if version or revision changed, update nixpkgs-dart and flake.lock manually
+  Dart SDK: update-release-pins appends the new version to pkgs/dart-sdk/sdks.nix
+  Rust toolchain: update-release-pins copies the release rust-toolchain.toml
 
 Verify:
   nix flake check --all-systems --no-build --no-write-lock-file

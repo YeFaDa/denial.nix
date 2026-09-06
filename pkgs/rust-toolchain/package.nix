@@ -4,7 +4,10 @@
   path,
   stdenv,
   version ? (builtins.fromTOML (builtins.readFile ../denial/rust-toolchain.toml)).toolchain.channel,
-  hashes ? import ./hashes.nix,
+  # Not named `hashes`: nixpkgs' top-level scope has an unrelated `hashes`
+  # attribute, and callPackage auto-fills scope-matching arguments even when
+  # a default is given.
+  toolchainHashes ? import ./hashes.nix,
 }:
 
 # A Rust toolchain pinned the way nixpkgs bootstraps its own: the official
@@ -27,7 +30,7 @@ let
     "aarch64-linux" = "aarch64-unknown-linux-gnu";
   }.${stdenv.hostPlatform.system} or (throw "rust-toolchain: unsupported system ${stdenv.hostPlatform.system}");
 
-  hashes' = hashes.${version} or (throw "pkgs/rust-toolchain/hashes.nix has no entry for Rust ${version}");
+  hashes' = toolchainHashes.${version} or (throw "pkgs/rust-toolchain/hashes.nix has no entry for Rust ${version}");
   hash = hashes'.${stdenv.hostPlatform.system} or (throw "pkgs/rust-toolchain/hashes.nix has no ${stdenv.hostPlatform.system} entry for Rust ${version}");
 
   src = fetchurl {

@@ -49,17 +49,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # because of its `kms` feature; none of that is reachable from here.
   doCheck = false;
 
-  postPatch = ''
-    # Same substitution `pkgs/denial` applies. It is not on this binary's
-    # compilation path -- `clipboard.rs` is a module of the `deniald` binary,
-    # not of the `denial_core` library -- but keeping the two patches in step
-    # means dropping it in one place cannot leave the other one building
-    # against a different source tree.
-    substituteInPlace compositor/src/bin/deniald/clipboard.rs \
-      --replace-fail 'data.strip_circumfix(&[0xff, 0xd8], &[0xff, 0xd9])?' \
-        'data.strip_prefix(&[0xff, 0xd8][..]).and_then(|d| d.strip_suffix(&[0xff, 0xd9][..]))?'
-  '';
-
   postInstall = ''
     installManPage docs/man/denial-ui.1
   '';

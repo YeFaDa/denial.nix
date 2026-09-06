@@ -73,7 +73,7 @@ if useSource then denialSettingsSource else stdenv.mkDerivation (finalAttrs: {
       # the source build already makes the same substitution, so the two
       # variants stay consistent.
       substituteInPlace "$out/share/applications/dev.denial.Settings.desktop" \
-        --replace-fail /usr/bin/denial-settings "${lib.placeholder "out"}/bin/denial-settings"
+        --replace-fail /usr/bin/denial-settings "${placeholder "out"}/bin/denial-settings"
     fi
     runHook postInstall
   '';

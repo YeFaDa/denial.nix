@@ -131,22 +131,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
   postPatch = ''
     patchShebangs packaging/arch/denial-session
 
-    # clipboard.rs guards on JPEG SOI/EOI markers with slice::strip_circumfix,
-    # stabilized in the Rust 1.98 toolchain pinned by upstream's
-    # rust-toolchain.toml; nixpkgs ships an older rustc, so expand it into the
-    # equivalent strip_prefix/strip_suffix chain. Drop once nixpkgs has 1.98.
-    substituteInPlace compositor/src/bin/deniald/clipboard.rs \
-      --replace-fail 'data.strip_circumfix(&[0xff, 0xd8], &[0xff, 0xd9])?' \
-        'data.strip_prefix(&[0xff, 0xd8][..]).and_then(|d| d.strip_suffix(&[0xff, 0xd9][..]))?'
-
     # The launcher reads the system output-configuration template when it
     # initializes a user's copy; /etc is not populated on non-NixOS use of
     # this package, so point it at the packaged template instead.
     substituteInPlace packaging/arch/denial-session \
-      --replace-fail '/etc/denial/outputs.conf' "${lib.placeholder "out"}/share/denial/outputs.conf"
+      --replace-fail '/etc/denial/outputs.conf' "${placeholder "out"}/share/denial/outputs.conf"
 
     substituteInPlace packaging/arch/denial.desktop \
-      --replace-fail '/usr/bin/denial-session' "${lib.placeholder "out"}/bin/denial-session"
+      --replace-fail '/usr/bin/denial-session' "${placeholder "out"}/bin/denial-session"
 
     substituteInPlace packaging/arch/xdg-desktop-portal-wlr-Denial \
       --replace-fail 'chooser_cmd=zenity ' 'chooser_cmd=${lib.getExe zenity} '
@@ -155,10 +147,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     # hardcode /usr/bin; point them at this store path instead.
     substituteInPlace packaging/arch/denial-portal.service \
       --replace-fail 'ExecStart=/usr/bin/denial-portal' \
-        "ExecStart=${lib.placeholder "out"}/bin/denial-portal"
+        "ExecStart=${placeholder "out"}/bin/denial-portal"
     substituteInPlace packaging/arch/org.freedesktop.impl.portal.desktop.denial.service \
       --replace-fail 'Exec=/usr/bin/denial-portal' \
-        "Exec=${lib.placeholder "out"}/bin/denial-portal"
+        "Exec=${placeholder "out"}/bin/denial-portal"
   '';
 
   # The cc-wrapper prunes RUNPATH entries of buildInputs that are never
