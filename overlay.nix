@@ -52,6 +52,14 @@ let
     }).cpu;
     gclient2nixLinux = final.runCommand "gclient2nix-linux" {
       nativeBuildInputs = [ final.makeWrapper ];
+      # A patched copy of nixpkgs' gclient2nix, so its provenance and license
+      # carry over; only the description and mainProgram are our own.
+      meta = (final.gclient2nix.meta or { }) // {
+        description = "gclient2nix with Linux host-platform defaults, used by the Denial engine build";
+        license = final.lib.licenses.mit;
+        sourceProvenance = with final.lib.sourceTypes; [ fromSource ];
+        mainProgram = "gclient2nix";
+      };
     } ''
       mkdir -p "$out/bin"
       cp ${final.gclient2nix}/bin/.gclient2nix-wrapped "$out/bin/gclient2nix"

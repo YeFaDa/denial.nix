@@ -46,6 +46,7 @@ in {
     description = "Check for Denial updates and print fields to update";
     homepage = "https://github.com/denialwm/denial";
     license = lib.licenses.gpl3Plus;
+    sourceProvenance = with lib.sourceTypes; [ fromSource ];
     platforms = lib.platforms.linux;
     mainProgram = "denial-update-check";
   };
