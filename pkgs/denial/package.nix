@@ -7,21 +7,17 @@
   makeWrapper,
   pkg-config,
 
-  # Libraries linked by the compositor (Smithay KMS backends).
+  # Runtime libraries of deniald, grouped below in `runtimeLibraries`.
   libgbm,
   libinput,
   libxkbcommon,
   seatd,
   systemd, # libudev
-
-  # Libraries the compositor loads with dlopen() at runtime. They are not
-  # referenced at link time, but being buildInputs puts them on the RUNPATH
-  # of deniald so the dynamic linker resolves the dlopen() calls.
-  libglvnd, # libEGL.so.1        - Smithay GL renderer
-  wayland, # libwayland-server.so - Wayland frontend
-  libpulseaudio, # libpulse.so.0    - audio controls
-  pam, # libpam.so.0       - session unlock authentication
-  ddcutil, # libddcutil.so.5   - external display controls
+  libglvnd,
+  wayland,
+  libpulseaudio,
+  pam,
+  ddcutil,
 
   # Tools required on PATH by the packaged session launcher and the shell.
   bash,
@@ -53,6 +49,28 @@ let
     if useSource then denial-flutter-shell-source else denial-flutter-shell-prebuilt;
   denialSettings =
     if useSource then denial-settings-source else denial-settings-prebuilt;
+
+  # Every library deniald needs at runtime: either linked by the Smithay
+  # backends or dlopen()ed by soname. Kept in one place because buildInputs
+  # (which stdenv turns into the RUNPATH) and the -l flags in RUSTFLAGS
+  # (which keep the dlopen()ed ones from being pruned) must agree.
+  runtimeLibraries = [
+    # Libraries linked by the compositor (Smithay KMS backends).
+    libgbm
+    libinput
+    libxkbcommon
+    seatd
+    systemd # libudev
+
+    # Libraries the compositor loads with dlopen() at runtime. They are not
+    # referenced at link time, but being buildInputs puts them on the RUNPATH
+    # of deniald so the dynamic linker resolves the dlopen() calls.
+    libglvnd # libEGL.so.1        - Smithay GL renderer
+    wayland # libwayland-server.so - Wayland frontend
+    libpulseaudio # libpulse.so.0    - audio controls
+    pam # libpam.so.0       - session unlock authentication
+    ddcutil # libddcutil.so.5   - external display controls
+  ];
 in
 
 # Packaging model (mirrors niri's nixpkgs package for the Rust part):
@@ -104,19 +122,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     pkg-config
   ];
 
-  buildInputs = [
-    libgbm
-    libinput
-    libxkbcommon
-    seatd
-    systemd
-
-    libglvnd
-    wayland
-    libpulseaudio
-    pam
-    ddcutil
-  ];
+  buildInputs = runtimeLibraries;
 
   # Matches upstream's release build: the "flutter" feature pulls in the
   # kms, control and wire features required by deniald and denialctl.
@@ -156,10 +162,15 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # The cc-wrapper prunes RUNPATH entries of buildInputs that are never
   # linked, so libraries loaded with dlopen() must also be force-linked
   # (like niri does for libEGL) to stay resolvable by soname.
+  #
+  # Linking itself goes through the cc-wrapper's ld, so RUNPATH is derived
+  # from buildInputs; the pinned toolchain takes care of that (see
+  # pkgs/rust-toolchain/package.nix) and needs no help here.
   env = {
     RUSTFLAGS = toString (
       map (arg: "-C link-arg=" + arg) [
         "-Wl,--push-state,--no-as-needed"
+        "-lgbm" # DRM buffer allocation (loaded by the KMS backend)
         "-lEGL" # Smithay GL renderer
         "-lwayland-server" # Wayland frontend (dlopen'd unversioned)
         "-lpulse" # audio controls

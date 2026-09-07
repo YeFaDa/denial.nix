@@ -1,7 +1,10 @@
 {
   callPackage,
   fetchurl,
+  lib,
+  makeWrapper,
   path,
+  runCommand,
   stdenv,
   version ? (builtins.fromTOML (builtins.readFile ../denial/rust-toolchain.toml)).toolchain.channel,
   # Not named `hashes`: nixpkgs' top-level scope has an unrelated `hashes`
@@ -37,9 +40,48 @@ let
     url = "https://static.rust-lang.org/dist/rust-${version}-${target}.tar.xz";
     inherit hash;
   };
+
+  # Upstream's dist toolchain ships rust-lld and links with it by default on
+  # x86_64-unknown-linux-gnu. rustc then drives the link as
+  # `cc -B <rustlib>/bin/gcc-ld -fuse-ld=lld`, and the cc-wrapper does not
+  # translate the dependency -L paths it hands over into -rpath on that path,
+  # so every binary comes out with an empty RUNPATH and each dlopen()ed
+  # library fails to resolve at runtime.
+  #
+  # nixpkgs' own rustc does not have this: it is configured with
+  # `--disable-lld` (rustc.nix:147, plus the `"rust-lld"` -> `"lld"` rename
+  # at rustc.nix:344) and ships no bundled linker -- its rustlib bin/ holds
+  # nothing but rust-objcopy. nixpkgs runs into the very same thing whenever
+  # it uses this exact tarball as its bootstrap compiler, and passes these
+  # two flags there (rustc.nix:100-106, same comment word for word).
+  #
+  # Bake them into the toolchain rather than into every consumer: with this,
+  # the whole toolchain links through the cc-wrapper's ld and derives RUNPATH
+  # from buildInputs, exactly like nixpkgs' rustc.
+  noSelfContainedLinkerFlags = [
+    "-Clinker-features=-lld"
+    "-Clink-self-contained=-linker"
+  ];
+
+  dist = callPackage "${toString path}/pkgs/development/compilers/rust/binary.nix" {
+    inherit version src;
+    platform = target;
+    versionType = "dist";
+  };
 in
-callPackage "${toString path}/pkgs/development/compilers/rust/binary.nix" {
-  inherit version src;
-  platform = target;
-  versionType = "dist";
+dist
+// {
+  rustc = runCommand "rustc-${version}" {
+    inherit (dist.rustc) version src meta;
+    passthru = (dist.rustc.passthru or { }) // {
+      unwrapped = dist.rustc;
+    };
+    nativeBuildInputs = [ makeWrapper ];
+  } ''
+    mkdir -p "$out/bin"
+    for program in ${dist.rustc}/bin/*; do
+      makeWrapper "$program" "$out/bin/$(basename "$program")" \
+        --add-flags "${lib.escapeShellArgs noSelfContainedLinkerFlags}"
+    done
+  '';
 }
