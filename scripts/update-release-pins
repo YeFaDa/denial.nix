@@ -357,13 +357,16 @@ for binding, value in (('"x86_64-linux"', x64_artifacts_hash),
         raise SystemExit(f"expected one {binding} artifacts hash")
 artifacts.write_text(text)
 
-flake = Path("flake.nix")
-text = flake.read_text()
+# The two versioned fetchurls live in overlay.nix; flake.nix only wires the
+# overlay up. Pointing this at flake.nix aborted the run after every other
+# file had already been rewritten, leaving a half-updated tree.
+overlay = Path("overlay.nix")
+text = overlay.read_text()
 for binding, value in (("materialFonts", material_fonts_hash), ("gradleWrapper", gradle_wrapper_hash)):
     text, count = re.subn(rf'({binding} = final\.fetchurl \{{.*?hash = )"sha256-[^"]+";', rf'\1"{value}";', text, count=1, flags=re.S)
     if count != 1:
         raise SystemExit(f"expected one {binding} hash")
-flake.write_text(text)
+overlay.write_text(text)
 PY
 
 echo "Updated ${release_tag}; Dart SDK at ${current_dart_version} (${new_dart_revision}), Rust toolchain per the release's rust-toolchain.toml." >&2
