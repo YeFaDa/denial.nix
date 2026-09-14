@@ -63,7 +63,7 @@ let
   # resolved a tag to -- passing `rev` here instead of `tag` would change the
   # tarball URL and therefore the hash. Bump with `pkgs/version.nix`; see
   # `scripts/update-release-pins`.
-  sourceRev = "85b2303e2f09ae7b7b993641f90061a200f03d53";
+  sourceRev = "271aecd9ece77a5a55e9e73192bab4078bb5cc89";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-ui-development-source";
@@ -76,7 +76,7 @@ stdenv.mkDerivation (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${version}";
-    hash = "sha256-bvti0xjlqNEd8o1/XfOetM7TwPJyvXesNJmLAKAWpZM=";
+    hash = "sha256-NnUb+ZZoQaCdYBXO7GThGmUYQ/zdMmUvAHPQF0Mb+wA=";
   };
 
   nativeBuildInputs = [
