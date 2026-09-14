@@ -51,6 +51,6 @@ jobs:
 
             Automatic pin update only. Build and review this PR manually before merging.
           add-paths: |
-            flake.nix
+            overlay.nix
             scripts/update-release-pins
             pkgs
