@@ -128,8 +128,20 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # kms, control and wire features required by deniald and denialctl.
   # Upstream builds the workspace member denial-portal in a second plain
   # `cargo build -p denial-portal`; selecting both packages mirrors that.
+  #
+  # The --bin list pins the installed binary set. Without it `-p denial` also
+  # builds denial-glass-benchmark, the offscreen profiling tool added in
+  # 0.4.0, and cargoInstallHook copies every executable it finds in
+  # target/release into $out/bin. Upstream installs only these three
+  # (tools/denial-pc builds with `--bin deniald --bin denialctl`).
   buildFeatures = [ "flutter" ];
-  cargoBuildFlags = [ "-p" "denial" "-p" "denial-portal" ];
+  cargoBuildFlags = [
+    "-p" "denial"
+    "-p" "denial-portal"
+    "--bin" "deniald"
+    "--bin" "denialctl"
+    "--bin" "denial-portal"
+  ];
 
   # The compositor test suite drives real DRM/KMS devices.
   doCheck = false;
@@ -221,6 +233,23 @@ rustPlatform.buildRustPackage (finalAttrs: {
         xwayland
         zenity
       ]}"
+
+    # The shell bakes absolute /usr/bin paths into libapp.so: it spawns
+    # /usr/bin/denial-settings and runs /usr/bin/denialctl (and
+    # /usr/bin/denial-ui) by name. 0.4.0 added an environment override for
+    # each. Default the two this package ships on the compositor itself so
+    # every entry point works -- session.conf only exists when the NixOS
+    # module is enabled, so a hand-started session would otherwise run paths
+    # no NixOS machine has. --set-default keeps a value from session.conf (or
+    # from the environment) winning.
+    #
+    # DENIAL_DEVELOPMENT_TOOL is deliberately left unset: it names the UI
+    # development toolchain, a separate multi-gigabyte package that must not
+    # enter the compositor's closure. The NixOS module points it at the
+    # toolchain when programs.denial.uiDevelopment is enabled.
+    wrapProgram "$out/bin/deniald" \
+      --set-default DENIAL_SETTINGS_BINARY "$out/bin/denial-settings" \
+      --set-default DENIAL_CONTROL_TOOL "$out/bin/denialctl"
 
     install -Dm644 packaging/arch/denial.desktop \
       "$out/share/wayland-sessions/denial.desktop"
