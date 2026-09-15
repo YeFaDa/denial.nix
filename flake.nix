@@ -20,7 +20,17 @@
           };
         });
 
-      nixosModules.denial = import ./nix/module.nix;
+      # The module's package defaults are looked up as `pkgs.denial` and
+      # `pkgs."denial-ui-development"`, so the overlay has to be applied for
+      # them to resolve. Doing it here means a consumer only imports the
+      # module; `overlays.default` stays exported for anyone who wants
+      # `pkgs.denial` outside the module. Overlays are additive, so a host
+      # that already lists it gets the same attribute values twice, not a
+      # conflict.
+      nixosModules.denial = {
+        imports = [ ./nix/module.nix ];
+        nixpkgs.overlays = [ self.overlays.default ];
+      };
       nixosModules.default = self.nixosModules.denial;
     };
 }

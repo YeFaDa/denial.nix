@@ -3,14 +3,21 @@
 # applies the same overlay the flake uses, exposes the same package set, and
 # additionally exports the overlay and the NixOS module so NUR consumers can
 # use them the standard way (`nur.repos.YeFaDa.overlays.default` +
-# `nur.repos.YeFaDa.nixosModules.denial`; the module needs the overlay
-# applied for its `pkgs.denial` default to resolve).
+# `nur.repos.YeFaDa.nixosModules.denial`). The module applies the overlay
+# itself, so importing it is enough; `overlays.default` stays exported for
+# anyone who wants `pkgs.denial` outside the module.
 { pkgs ? import <nixpkgs> {} }:
 let
   denialOverlay = import ./overlay.nix;
+  # `imports` rather than merging into the module: the overlay has to reach
+  # `nixpkgs.overlays` so the module's `pkgs.denial` default resolves.
+  denialModule = {
+    imports = [ (import ./nix/module.nix) ];
+    nixpkgs.overlays = [ denialOverlay ];
+  };
 in
 (import ./nix/packages.nix { pkgs = pkgs.extend denialOverlay; }) // {
   overlays.default = denialOverlay;
-  nixosModules.denial = import ./nix/module.nix;
-  nixosModules.default = import ./nix/module.nix;
+  nixosModules.denial = denialModule;
+  nixosModules.default = denialModule;
 }

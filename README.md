@@ -204,15 +204,20 @@ NixOS:
       system = "x86_64-linux";
       modules = [
         denial.nixosModules.denial
-        {
-          nixpkgs.overlays = [ denial.overlays.default ];
-          programs.denial.enable = true;
-        }
+        { programs.denial.enable = true; }
       ];
     };
   };
 }
 ```
+
+Importing the module is enough. It applies `denial.overlays.default` itself,
+because the `programs.denial.package` and
+`programs.denial.uiDevelopment.package` defaults are looked up as
+`pkgs.denial` and `pkgs."denial-ui-development"`. Overlays are additive, so
+also listing `nixpkgs.overlays = [ denial.overlays.default ];` yourself gives
+the same attribute values twice rather than a conflict; the overlay stays
+exported for anyone who wants `pkgs.denial` outside the module.
 
 The module installs the session, registers it with display managers
 (`services.displayManager.sessionPackages`), makes `denial-session.target`
