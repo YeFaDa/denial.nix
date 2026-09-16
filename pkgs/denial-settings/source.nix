@@ -63,7 +63,7 @@ buildDartApplication.override { inherit dart; } (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${version}";
-    hash = "sha256-1Y2uXcGwKsFt/+oxhV53sEUtXJxnO/HShUBBYOE1MrM=";
+    hash = "sha256-sOtfYESszTA7ne+32QqcYk2iqDQSyzLQpdOskfkvvqA=";
   };
   sourceRoot = "source/settings_app";
   strictDeps = true;
