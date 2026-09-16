@@ -94,7 +94,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-NnUb+ZZoQaCdYBXO7GThGmUYQ/zdMmUvAHPQF0Mb+wA=";
+    hash = "sha256-1Y2uXcGwKsFt/+oxhV53sEUtXJxnO/HShUBBYOE1MrM=";
   };
 
   # The cargo workspace lives in compositor/: cargoRoot places the vendored
