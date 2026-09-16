@@ -19,9 +19,12 @@
   pam,
   ddcutil,
 
-  # Tools required on PATH by the packaged session launcher and the shell.
+  # Tools required on PATH by the packaged session launcher, the shell and the
+  # system-sleep hook.
   bash,
   coreutils,
+  gnused, # sed, for the system-sleep hook
+  util-linux, # logger, for the system-sleep hook
   xwayland,
   zenity,
 
@@ -257,6 +260,21 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$out/lib/systemd/user/denial-session.target"
     install -Dm644 packaging/arch/denial-portal.service \
       "$out/lib/systemd/user/denial-portal.service"
+
+    # systemd runs system-sleep hooks as root before sleep with a minimal
+    # PATH, while the suspend mode itself is published per session by the
+    # unprivileged compositor below $XDG_RUNTIME_DIR. Put the hook's
+    # loginctl/sed/logger on its PATH with a wrapper -- the shape nixpkgs
+    # itself uses for $out/lib/systemd/system-* scripts (netplan,
+    # distrobuilder) -- instead of anchoring a substitution on upstream's
+    # shebang line. The module links this into /etc/systemd/system-sleep;
+    # upstream also installs it under elogind's /usr/lib/elogind/system-sleep,
+    # which does not exist on NixOS.
+    install -Dm755 packaging/denial-suspend-mode \
+      "$out/lib/systemd/system-sleep/denial-suspend-mode"
+    wrapProgram "$out/lib/systemd/system-sleep/denial-suspend-mode" \
+      --prefix PATH : "${lib.makeBinPath [ gnused systemd util-linux ]}"
+
     install -Dm644 packaging/arch/denial-portals.conf \
       "$out/share/xdg-desktop-portal/denial-portals.conf"
     install -Dm644 packaging/arch/denial.portal \

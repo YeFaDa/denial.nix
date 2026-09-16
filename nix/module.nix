@@ -137,6 +137,12 @@ in
     # user manager on its own; installing the packaged unit is enough.
     systemd.packages = [ cfg.package ];
 
+    # systemd runs this before entering a sleep state, as root, and applies
+    # the mode the compositor published for the active session. systemd
+    # searches /etc/systemd/system-sleep along with the vendor directories.
+    environment.etc."systemd/system-sleep/denial-suspend-mode".source =
+      "${cfg.package}/lib/systemd/system-sleep/denial-suspend-mode";
+
     # The lock screen authenticates through PAM using the service named by
     # DENIAL_PAM_SERVICE (defaults to "login" upstream).
     security.pam.services.denial = { };
