@@ -121,7 +121,7 @@ in
       # absolute path. Only set when that toolchain is actually installed.
       (lib.optional cfg.uiDevelopment.enable
         "export DENIAL_DEVELOPMENT_TOOL=${cfg.uiDevelopment.package}/bin/denial-ui")
-      (lib.mapAttrsToList (n: v: "${n}=${v}") cfg.extraSessionConf)
+      (lib.mapAttrsToList (n: v: "export ${n}=${v}") cfg.extraSessionConf)
     ]);
 
   in {
