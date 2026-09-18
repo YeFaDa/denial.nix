@@ -22,7 +22,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-sOtfYESszTA7ne+32QqcYk2iqDQSyzLQpdOskfkvvqA=";
+    hash = "sha256-C/q56IadorfoJdK71MSX7lUcdasdpdaoHN3ofiJRZ5Q=";
   };
 
   cargoRoot = "compositor";
