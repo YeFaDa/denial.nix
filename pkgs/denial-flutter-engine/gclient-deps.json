@@ -1,10 +1,10 @@
 {
     ".": {
         "args": {
-            "hash": "sha256-pXqNILNpgg6cj536+pEAVJIq1O1pPWRY6LV4HTK8zBs=",
+            "hash": "sha256-k7tdgQM221bMSFeYp4IZIIZUlzfvAaWgQ/hGkewoOXU=",
             "owner": "denialwm",
             "repo": "flutter",
-            "rev": "c8894357b3a91902c358e8ad5cf0ebc85d45e83e"
+            "rev": "d0817320163b3fb5a284e63cc21f2d6b9138442b"
         },
         "fetcher": "fetchFromGitHub"
     },

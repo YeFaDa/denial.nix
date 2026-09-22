@@ -22,15 +22,15 @@ in
   "x86_64-linux" = {
     denial = {
       url = "https://github.com/denialwm/denial/releases/download/v${version}/denial-${version}-1-x86_64.pkg.tar.zst";
-      hash = "sha256-Qy5OuFUhoum+wiifRv8tuY46Xok/mvqJLnH9AerZ7RM=";
+      hash = "sha256-+/y11wskQUnnjL7newEc+Uqp/ClOoCOxehiCChdB8j8=";
     };
     engine = {
       url = "https://github.com/denialwm/denial/releases/download/v${version}/denial-flutter-engine-1.${version}-1-x86_64.pkg.tar.zst";
-      hash = "sha256-tvFkQsZYTosKTecqmWhiIs1OTxUljsv7H+o7niOppUY=";
+      hash = "sha256-02nYDDwlRKIdTKKIclinVEsgzOJ7wbWVX+kWIXqpgx0=";
     };
     uiDevelopment = {
       url = "https://github.com/denialwm/denial/releases/download/v${version}/denial-ui-development-${version}-1-x86_64.pkg.tar.zst";
-      hash = "sha256-MQggBBHu+Ok8H/NMQm5VRAktKur9uRwkUEubmdrLniM=";
+      hash = "sha256-gXlV4K/RmnwagZlX08PGRPyROmMjbrGoCkqd2GGF7io=";
     };
   };
 }
