@@ -1,5 +1,10 @@
 # Nix/Nixos packaging for denialwm/denial
 
+> **Upstream maintains its own Nix flake.** The Denial repository ships a
+> `flake.nix` and `nix/` directory, including a NixOS module. This repository
+> is an independent, unofficial packaging with no affiliation to upstream.
+> Use upstream's flake if you want the officially supported setup.
+
 Unoffical Nix packaging for [Denial](https://github.com/denialwm/denial), a Flutter-native
 Wayland compositor.
 
@@ -139,24 +144,18 @@ pkgs/denial-flutter-shell/package.nix    # prebuilt AOT shell + assets
 pkgs/denial-flutter-shell/source.nix     # source AOT shell (flutter assemble)
 ```
 The main package assembles the runtime layout the upstream session launcher
-expects (`$out/lib/denial/flutter/{lib,data}`); the four bundle members are
-symlinks into the two prebuilt packages, so the packaged `denial-session`
-script finds the bundle, the engine and the binaries relative to its own
-prefix without any patching beyond the paths below:
+expects (`$out/lib/denial/flutter/{lib,data}`). The launcher derives its prefix
+from `argv[0]`, so nothing in it is written against `/usr` and the only path
+that needs patching is the desktop entry's `Exec`/`TryExec`, pointed at
+`$out/bin/denial-session`.
 
-- `/etc/denial/outputs.conf` → `$out/share/denial/outputs.conf` (per-user copy
-  template; the launcher resolves this from the store, so a file in `/etc` is
-  never read)
-- desktop entry `Exec`/`TryExec` → `$out/bin/denial-session`
-
-The template is only ever a seed for `~/.config/denial/outputs.conf`, written on
-first login and owned by the user afterwards. There is deliberately no option to
-configure it from the NixOS module: system and home directory scopes should not
-overlap, and a system-level setting that stops applying the moment the user edits
-their own copy is worse than no setting at all.
-
-`/etc/denial/session.conf` is the one machine-level file the launcher still
-sources when it exists; the module provides it through `environment.etc`.
+`session.conf` and `outputs.conf` are looked up the same way, taking the first
+that exists: a `$DENIAL_*` override, then `/etc/denial/`, then the packaged
+copy under `$out/etc/denial/`. Both packaged copies are upstream's own
+`packaging/arch` files installed verbatim, and neither carries an active
+directive — they document the accepted syntax in comments. The two module
+options that write the `/etc` files are documented under
+[Usage](#usage).
 
 `deniald` dlopens `libEGL.so.1`, `libwayland-server.so`, `libpulse.so.0`,
 `libpam.so.0` and `libddcutil.so.5`; those libraries are buildInputs so the
@@ -249,11 +248,35 @@ They are deliberately not exported through `environment.sessionVariables`,
 which would put them into every PAM session on the machine — ssh logins, ttys
 and any other desktop environment — rather than just the Denial one.
 
-Output configuration is not exposed here at all. `denial-session` seeds
-`$out/share/denial/outputs.conf` into `~/.config/denial/outputs.conf` on first
-login and never looks at it again, so a system-level setting would stop
-applying the moment the user edited their own copy. Configure outputs in your
-home directory instead.
+Display configuration goes through `programs.denial.outputsConf`, which takes
+the file content as a string:
+
+```nix
+programs.denial.outputsConf = ''
+  eDP-1=0,0
+  primary=eDP-1
+  scale=eDP-1,1.5
+'';
+```
+
+Or assembled from other Nix values:
+
+```nix
+let layout = [ "eDP-1=0,0" "DP-1=1920,0" "primary=DP-1" ]; in
+{
+  programs.denial.outputsConf = lib.concatStringsSep "\n" layout;
+}
+```
+
+The content is written to `/etc/denial/outputs.conf` and treated as
+declarative: rearranging a display in Settings keeps the result in
+`~/.local/state/denial/outputs.conf`, and changing this string makes the new
+content replace it at the next login. Leave it unset to write no `/etc` file
+at all and let each user configure `~/.config/denial/outputs.conf` themselves.
+
+The accepted directives — `eDP-1=0,0` placement, `mode`, `scale`, `primary`,
+`transform`, `vrr`, `system_bar` and `maximize_padding` — are the ones the
+commented reference shipped inside the package documents.
 
 The module does not write `xdg.portal.config.denial`. That option lands in
 `/etc/xdg/xdg-desktop-portal/denial-portals.conf`, and `portals.conf(5)` reads
@@ -268,11 +291,34 @@ dependencies:
 programs.denial.extraRuntimePackages = with pkgs; [
   networkmanager        # network controls (nmcli)
   iwd                   # Wi-Fi controls without NetworkManager
+  modemmanager          # mobile signal status and SIM PIN unlock
   upower                # battery status
   power-profiles-daemon
   lact                  # AMD GPU performance controls
   pipewire-pulse        # desktop audio controls
+  fprintd               # fingerprint unlock and enrollment
+  sudo                  # authorize fingerprint management in Settings
 ];
+```
+
+Settings controls external monitor brightness over DDC/CI, which needs access
+to `/dev/i2c-*`. That access is granted by default; turn it off if the machine
+manages I2C for something else:
+
+```nix
+programs.denial.ddc.enable = false;
+```
+
+Privileged operations from the session — mounting a drive, connecting to a
+network, changing the clock — show a Polkit password dialog. The agent that
+draws it is started automatically; disable it if another component in the same
+session already provides one, or replace the command:
+
+```nix
+programs.denial.polkitAgent = {
+  enable = true;
+  command = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+};
 ```
 
 ### UI development toolchain
@@ -319,11 +365,13 @@ Notes:
 - CJK fallback fonts (upstream ships `adobe-source-han-sans-cn-fonts`) are a
   fontconfig concern; add a CJK font to `fonts.packages` if needed.
 - The `denial` package includes `denial-settings` and its desktop entry, using
-  whichever bundle `useSource` selects. Two NixOS adaptations ride along: the
-  module points the shell's hardcoded `/usr/bin/denial-settings` lookup at the
-  packaged launcher through `DENIAL_SETTINGS_BINARY` in `session.conf`, and the
-  prebuilt bundle's ELF interpreter is repointed at the NixOS loader (upstream
-  builds it for generic Linux, which NixOS's stub loader refuses to run).
+  whichever bundle `useSource` selects. The shell's `/usr/bin/...` lookups are
+  gone: `denial-session` exports `DENIAL_COMPOSITOR_BINARY`,
+  `DENIAL_CONTROL_TOOL` and `DENIAL_SETTINGS_BINARY` as package-relative paths,
+  so Settings opens with no `session.conf` entry and no module involved. One
+  adaptation does remain: the prebuilt bundle's ELF interpreter is repointed at
+  the NixOS loader (upstream builds it for generic Linux, which NixOS's stub
+  loader refuses to run).
 - **`aarch64` needs one extra line.** Upstream publishes no prebuilt artifacts
   for it, so `pkgs.denial` throws there by design:
 

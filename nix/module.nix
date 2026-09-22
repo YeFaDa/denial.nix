@@ -71,6 +71,47 @@ in
       };
     };
 
+    # Denial's Settings app controls external monitor brightness over DDC/CI,
+    # which talks to the display itself across the I2C bus. That needs access
+    # to /dev/i2c-*, so the compositor's users have to be in the `i2c` group.
+    #
+    # Default matches upstream's module. Turning it off leaves the brightness
+    # control in Settings failing on external displays; internal panels are
+    # driven through the backlight interface instead and are unaffected.
+    ddc.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether to grant I2C device access for Denial's DDC monitor controls.
+      '';
+    };
+
+    # Privileged desktop operations -- mounting a drive, connecting to a
+    # network, changing the clock -- ask Polkit for permission rather than
+    # running through sudo. Polkit only decides; the agent is the password
+    # dialog the user actually sees. Without one those requests fail silently.
+    #
+    # Denial ships no agent of its own, so one is started as a user service
+    # alongside the session. Disable this when another desktop component in
+    # the same session already provides one, or two dialogs race each other.
+    polkitAgent = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Whether to run a PolicyKit authentication agent in Denial sessions.
+        '';
+      };
+      command = lib.mkOption {
+        type = lib.types.str;
+        default = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+        defaultText = lib.literalExpression ''
+          "''${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
+        '';
+        description = "Absolute command used for the PolicyKit authentication agent.";
+      };
+    };
+
     # Tools the shell and session launch by name, e.g. nmcli, powerprofilesctl
     # or lact. They are only put on the session PATH, matching the optional
     # dependencies of the upstream packages.
@@ -99,6 +140,35 @@ in
       example = { DENIAL_RUST_LOG = "deniald=debug"; };
       description = "Extra KEY=VALUE entries for /etc/denial/session.conf.";
     };
+
+    # Safe to set from the system scope even though the compositor writes the
+    # resolved file: the launcher treats declarative contents as read-only and
+    # copies them to $XDG_STATE_HOME/denial/outputs.conf, where display changes
+    # land. A user's live layout therefore survives until these contents change.
+    outputsConf = lib.mkOption {
+      type = lib.types.nullOr lib.types.lines;
+      default = null;
+      example = lib.literalMD ''
+        ```
+        eDP-1=0,0
+        primary=eDP-1
+        scale=eDP-1,1.5
+        ```
+      '';
+      description = ''
+        Contents of {file}`/etc/denial/outputs.conf`, in the format the
+        packaged reference documents.
+
+        Live changes made from Settings are written to
+        {file}`$XDG_STATE_HOME/denial/outputs.conf` and persist while these
+        contents stay unchanged; editing them and rebuilding replaces the
+        live file.
+
+        Left null, no {file}`/etc` file is written and the launcher reads the
+        commented-out reference inside the Denial store path, which asks for
+        automatic output placement.
+      '';
+    };
   };
   config = lib.mkIf cfg.enable (let
     sessionConf = lib.concatStringsSep "\n" (lib.flatten [
@@ -108,9 +178,11 @@ in
       # but only forwards exported variables to the compositor and its
       # children, which is where the shell reads them from.
       #
-      # The two paths the compositor package ships itself,
-      # DENIAL_SETTINGS_BINARY and DENIAL_CONTROL_TOOL, are defaulted by its
-      # own deniald wrapper, so they are not repeated here.
+      # The paths the compositor package ships itself -- the compositor, the
+      # control client and the Settings binary -- are not repeated here: the
+      # session launcher derives them from its own location and exports
+      # DENIAL_COMPOSITOR_BINARY, DENIAL_CONTROL_TOOL and
+      # DENIAL_SETTINGS_BINARY, and an entry here would override that.
       #
       # Listed before extraSessionConf so an explicit entry there wins.
       #
@@ -137,17 +209,45 @@ in
     # user manager on its own; installing the packaged unit is enough.
     systemd.packages = [ cfg.package ];
 
+    # Tied to the session target rather than the graphical session: the agent
+    # has to be up before anything in the session asks for authorization, and
+    # taken down with it so a second login does not leave two behind.
+    systemd.user.services.denial-polkit-agent = lib.mkIf cfg.polkitAgent.enable {
+      description = "PolicyKit authentication agent for Denial";
+      documentation = [ "https://github.com/denialwm/denial" ];
+      wantedBy = [ "denial-session.target" ];
+      partOf = [ "denial-session.target" ];
+      after = [ "denial-session.target" ];
+      serviceConfig = {
+        ExecStart = cfg.polkitAgent.command;
+        Restart = "on-failure";
+        RestartSec = "250ms";
+      };
+    };
+
     # systemd runs this before entering a sleep state, as root, and applies
     # the mode the compositor published for the active session. systemd
     # searches /etc/systemd/system-sleep along with the vendor directories.
-    environment.etc."systemd/system-sleep/denial-suspend-mode".source =
-      "${cfg.package}/lib/systemd/system-sleep/denial-suspend-mode";
-
     # The lock screen authenticates through PAM using the service named by
     # DENIAL_PAM_SERVICE (defaults to "login" upstream).
     security.pam.services.denial = { };
 
-    environment.etc."denial/session.conf".text = sessionConf + "\n";
+    # Every /etc entry in one definition: two assignments to this option are a
+    # conflict, and the attributes have to be merged rather than split.
+    environment.etc = {
+      "systemd/system-sleep/denial-suspend-mode".source =
+        "${cfg.package}/lib/systemd/system-sleep/denial-suspend-mode";
+
+      "denial/session.conf".text = sessionConf + "\n";
+    }
+    // lib.optionalAttrs (cfg.outputsConf != null) {
+      # Added only when the option carries text. An empty entry instead of an
+      # absent one would make NixOS write a zero-byte /etc/denial/outputs.conf,
+      # which the launcher would treat as a real source and use in place of the
+      # packaged reference -- and an empty outputs.conf is not the same as the
+      # commented-out one.
+      "denial/outputs.conf".text = cfg.outputsConf;
+    };
 
     users.groups.video = { };
     users.groups.input = { };
@@ -158,6 +258,11 @@ in
     };
     hardware.graphics.enable = lib.mkDefault true;
     security.rtkit.enable = lib.mkDefault true;
+
+    # mkDefault, not a plain assignment: a host that already manages I2C for
+    # another reason keeps its own setting. The module only supplies the
+    # default Denial's DDC support needs.
+    hardware.i2c.enable = lib.mkDefault cfg.ddc.enable;
 
     # Base Wayland session integration, same defaults the niri module gets
     # from wayland-session.nix: Polkit for power/network portals, dconf for
@@ -189,10 +294,5 @@ in
       # and drift silently whenever upstream changes its routing.
       configPackages = [ cfg.package ];
     };
-
-    # Denial does not implement zwlr-layer-shell, so xdg-desktop-portal-wlr
-    # must use the Zenity chooser shipped in the package instead of slurp.
-    environment.etc."xdg/xdg-desktop-portal-wlr/Denial".source =
-      "${cfg.package}/share/xdg-desktop-portal-wlr/Denial";
   });
 }

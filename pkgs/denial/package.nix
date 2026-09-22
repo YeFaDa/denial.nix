@@ -23,6 +23,7 @@
   # system-sleep hook.
   bash,
   coreutils,
+  diffutils, # cmp, when the launcher syncs a declarative output config
   gnused, # sed, for the system-sleep hook
   util-linux, # logger, for the system-sleep hook
   xwayland,
@@ -97,7 +98,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-C/q56IadorfoJdK71MSX7lUcdasdpdaoHN3ofiJRZ5Q=";
+    hash = "sha256-tqA3i67ZQBHedbn3yzqp7z+jgHcZjsbtm5pjdymPK5Y=";
   };
 
   # The cargo workspace lives in compositor/: cargoRoot places the vendored
@@ -137,6 +138,13 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # 0.4.0, and cargoInstallHook copies every executable it finds in
   # target/release into $out/bin. Upstream installs only these three
   # (tools/denial-pc builds with `--bin deniald --bin denialctl`).
+  #
+  # Xwayland support is deliberately left to cargo's default features. Since
+  # 0.4.4 the manifest is `default = ["xwayland"]`, with the x11rb and
+  # smithay/xwayland dependencies moved out of `flutter` into their own
+  # feature. Nothing here disables defaults, so the X11 clients the session
+  # launcher puts on PATH keep working. Adding `--no-default-features` to
+  # trim the build would silently drop them.
   buildFeatures = [ "flutter" ];
   cargoBuildFlags = [
     "-p" "denial"
@@ -152,11 +160,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
   postPatch = ''
     patchShebangs packaging/arch/denial-session
 
-    # The launcher reads the system output-configuration template when it
-    # initializes a user's copy; /etc is not populated on non-NixOS use of
-    # this package, so point it at the packaged template instead.
-    substituteInPlace packaging/arch/denial-session \
-      --replace-fail '/etc/denial/outputs.conf' "${placeholder "out"}/share/denial/outputs.conf"
+    # No substitution for the launcher's configuration paths: since the
+    # store-relative rework it derives its own prefix from argv[0] and falls
+    # back to $prefix/etc/denial/{session,outputs}.conf when /etc has no copy,
+    # so the packaged defaults are found without rewriting the script. What it
+    # reads from /etc, a NixOS host supplies through the module.
 
     substituteInPlace packaging/arch/denial.desktop \
       --replace-fail '/usr/bin/denial-session' "${placeholder "out"}/bin/denial-session"
@@ -228,31 +236,23 @@ rustPlatform.buildRustPackage (finalAttrs: {
     fi
 
     install -Dm555 packaging/arch/denial-session "$out/bin/denial-session"
+    # PATH only. The launcher derives its own compositor, control-client and
+    # Settings paths from $0 and exports DENIAL_COMPOSITOR_BINARY,
+    # DENIAL_CONTROL_TOOL and DENIAL_SETTINGS_BINARY for the shell and the
+    # Settings app to inherit, so no --set-default wrapper on deniald is needed
+    # any more. DENIAL_DEVELOPMENT_TOOL stays deliberately unset: it names the
+    # UI development toolchain, a separate multi-gigabyte package that must not
+    # enter the compositor's closure. The NixOS module points it at the
+    # toolchain when programs.denial.uiDevelopment is enabled.
     wrapProgram "$out/bin/denial-session" \
       --prefix PATH : "${lib.makeBinPath [
         bash
         coreutils
+        diffutils
         systemd
         xwayland
         zenity
       ]}"
-
-    # The shell bakes absolute /usr/bin paths into libapp.so: it spawns
-    # /usr/bin/denial-settings and runs /usr/bin/denialctl (and
-    # /usr/bin/denial-ui) by name. 0.4.0 added an environment override for
-    # each. Default the two this package ships on the compositor itself so
-    # every entry point works -- session.conf only exists when the NixOS
-    # module is enabled, so a hand-started session would otherwise run paths
-    # no NixOS machine has. --set-default keeps a value from session.conf (or
-    # from the environment) winning.
-    #
-    # DENIAL_DEVELOPMENT_TOOL is deliberately left unset: it names the UI
-    # development toolchain, a separate multi-gigabyte package that must not
-    # enter the compositor's closure. The NixOS module points it at the
-    # toolchain when programs.denial.uiDevelopment is enabled.
-    wrapProgram "$out/bin/deniald" \
-      --set-default DENIAL_SETTINGS_BINARY "$out/bin/denial-settings" \
-      --set-default DENIAL_CONTROL_TOOL "$out/bin/denialctl"
 
     install -Dm644 packaging/arch/denial.desktop \
       "$out/share/wayland-sessions/denial.desktop"
@@ -281,10 +281,25 @@ rustPlatform.buildRustPackage (finalAttrs: {
       "$out/share/xdg-desktop-portal/portals/denial.portal"
     install -Dm644 packaging/arch/org.freedesktop.impl.portal.desktop.denial.service \
       "$out/share/dbus-1/services/org.freedesktop.impl.portal.desktop.denial.service"
+    # Reference copy of the wlr portal override, at the upstream install path
+    # ($prefix/etc/xdg/...). Nothing reads it from here: on NixOS the portal
+    # resolves that directory to its own store path, which is read-only. This
+    # ships only as something to copy to ~/.config/xdg-desktop-portal-wlr, the
+    # one place the portal does read a per-desktop override from.
     install -Dm644 packaging/arch/xdg-desktop-portal-wlr-Denial \
-      "$out/share/xdg-desktop-portal-wlr/Denial"
-    install -Dm644 packaging/arch/outputs.conf packaging/arch/session.conf \
-      -t "$out/share/denial"
+      "$out/etc/xdg/xdg-desktop-portal-wlr/Denial"
+    # Packaged machine defaults, at the location the launcher's own fallback
+    # looks in: $prefix/etc/denial. The launcher resolves its prefix from $0,
+    # so this works from any store path and needs no /etc compatibility links.
+    # A NixOS host supplies the same paths through /etc, which wins over these.
+    #
+    # Both files are upstream's own packaging/arch copies, verbatim: they are
+    # commented-out reference documents, and this repository claims no
+    # authorship over them.
+    install -Dm644 packaging/arch/outputs.conf \
+      "$out/etc/denial/outputs.conf"
+    install -Dm644 packaging/arch/session.conf \
+      "$out/etc/denial/session.conf"
     installManPage docs/man/deniald.1 docs/man/denialctl.1 \
       docs/man/denial-session.1 docs/man/denial-portal.1
 

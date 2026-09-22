@@ -3,6 +3,7 @@
   stdenv,
   fetchFromGitHub,
   jq,
+  makeWrapper,
   patchelf,
   python3,
   unzip,
@@ -63,7 +64,7 @@ let
   # resolved a tag to -- passing `rev` here instead of `tag` would change the
   # tarball URL and therefore the hash. Bump with `pkgs/version.nix`; see
   # `scripts/update-release-pins`.
-  sourceRev = "93eb3261ff4c86b84b80e05d642c753c5ece3159";
+  sourceRev = "0fccf2c68ea560402153491a4efeabe6caefaa4e";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "denial-ui-development-source";
@@ -76,11 +77,12 @@ stdenv.mkDerivation (finalAttrs: {
     owner = "denialwm";
     repo = "denial";
     tag = "v${version}";
-    hash = "sha256-C/q56IadorfoJdK71MSX7lUcdasdpdaoHN3ofiJRZ5Q=";
+    hash = "sha256-tqA3i67ZQBHedbn3yzqp7z+jgHcZjsbtm5pjdymPK5Y=";
   };
 
   nativeBuildInputs = [
     jq
+    makeWrapper
     patchelf
     python3
     unzip
@@ -274,6 +276,21 @@ stdenv.mkDerivation (finalAttrs: {
     install -Dm755 "${denialUi}/bin/denial-ui" "$out/bin/denial-ui"
     ln -s denial-ui "$out/bin/denial-flutter"
 
+    # The client resolves its own tree to the compile-time
+    # /usr/lib/denial/ui-development. It counts the tree as installed only when
+    # `<root>/flutter/bin/cache/flutter_tools.snapshot` is a file, and falls
+    # back to a Flutter SDK under $XDG_CACHE_HOME otherwise. The prebuilt
+    # toolchain is an FHS environment that recreates the compile-time path; this
+    # one is a plain store path, so without the override it fails that check and
+    # goes looking for a cache nothing here ever populates.
+    #
+    # --set-default rather than --set: an explicit value still wins, which is
+    # what someone pointing the client at their own checkout expects. The
+    # wrapper passes argv[0] through, so the `denial-flutter` symlink above
+    # still takes the Flutter passthrough branch.
+    wrapProgram "$out/bin/denial-ui" \
+      --set-default DENIAL_UI_DEVELOPMENT_ROOT "$destination"
+
     install -Dm755 "${debugOut}/libflutter_engine.so" \
       "$destination/lib/libflutter_engine.so"
     install -Dm755 "${profileOut}/libflutter_engine.so" \
@@ -284,11 +301,16 @@ stdenv.mkDerivation (finalAttrs: {
       "$destination/data/icudtl.dat"
 
     cp -a --no-preserve=mode "$runtime" "$destination/flutter"
-    # Dart Code resolves Flutter launchers and rejects a symlink whose final
-    # basename is not literally "flutter", so this has to be a real copy of the
-    # client rather than a wrapper script.
+    # This has to be a regular file named exactly `flutter`: Dart Code resolves
+    # Flutter launchers by that basename and rejects a symlink pointing at
+    # `denial-ui`. A copy satisfies the name but not the environment -- the
+    # client cannot find its own tree from a copy -- so this is the wrapper
+    # form of the client, which is a real file under the right name and can
+    # carry DENIAL_UI_DEVELOPMENT_ROOT.
     install -m755 "${denialUi}/bin/denial-ui" \
       "$destination/flutter/bin/flutter"
+    wrapProgram "$destination/flutter/bin/flutter" \
+      --set-default DENIAL_UI_DEVELOPMENT_ROOT "$destination"
     install -Dm644 "${flutterTools}/share/flutter_tools.snapshot" \
       "$destination/flutter/bin/cache/flutter_tools.snapshot"
     mkdir -p "$destination/flutter/packages/flutter_tools/.dart_tool"
@@ -310,6 +332,21 @@ stdenv.mkDerivation (finalAttrs: {
       mkdir -p "$workspace/$(dirname "$relative")"
       cp -a --no-preserve=mode "$src/$relative" "$workspace/$relative"
     done
+
+    # The template's editor configuration carries upstream's install locations,
+    # which are the /usr paths this package exists to avoid. Rewrite them to
+    # where the files actually are, or every task and the Dart extension's SDK
+    # probe points at a directory NixOS does not have.
+    substituteInPlace "$workspace/dart_shell/.vscode/settings.json" \
+      --replace-fail '/usr/lib/denial/ui-development/flutter/bin/cache/dart-sdk' \
+        "$sdkRoot/bin/cache/dart-sdk"
+    substituteInPlace "$workspace/dart_shell/.vscode/settings.json" \
+      --replace-fail '/usr/lib/denial/ui-development/flutter' "$sdkRoot"
+    substituteInPlace "$workspace/dart_shell/.vscode/launch.json" \
+      --replace-fail '/usr/bin/denial-flutter' "$out/bin/denial-flutter"
+    substituteInPlace "$workspace/dart_shell/.vscode/tasks.json" \
+      --replace-fail '/usr/bin/denial-ui' "$out/bin/denial-ui"
+
     for required in \
       dart_shell/pubspec.yaml \
       dart_shell/lib/main.dart \
